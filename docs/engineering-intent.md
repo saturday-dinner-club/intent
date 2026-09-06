@@ -51,7 +51,7 @@ Services are independent processes and SHOULD assume separate VM nodes in produc
 - Stateless services SHOULD scale horizontally.
 - Worker admission MUST be separable from existing work: draining a node blocks new assignments while allowing current sessions to finish.
 - Queues, payloads, timeouts, and in-flight work MUST be bounded.
-- Retriable failures use bounded exponential backoff with jitter where synchronized retries are possible.
+- Ordinary request and background failures use bounded exponential backoff with jitter where synchronized retries are possible. Latency-critical internal media/control links MAY reconnect immediately without backoff when recovery delay is more harmful than repeated connection attempts.
 - A failed dependency SHOULD degrade only the capability for which it is authoritative.
 - Graceful shutdown applies to every process that owns listeners, leases, buffered work, child processes, or durable checkpoints—not only the final writer.
 
@@ -163,8 +163,10 @@ This is required for moderation and security policy changes whose Redis projecti
 ### 4.2 Retry and idempotency
 
 - Retry only errors classified as transient.
-- Use exponential backoff and cap both attempts and total time on request paths.
-- Background reconciliation MAY continue indefinitely, but each sweep remains bounded and yields between failures.
+- User-facing request paths use exponential backoff and cap both attempts and total time.
+- Background reconciliation MAY continue indefinitely with backoff, but each sweep remains bounded and yields between failures.
+- Latency-critical internal connections, including an active Ingress–Transcoder–Publisher path and its replacement control channel, MAY perform consecutive immediate reconnect attempts without exponential or fixed-delay backoff. Each dial and handshake MUST still have a timeout and honor cancellation. The loop MUST perform real I/O or yield to the scheduler rather than busy-spin, and repeated logs/metrics MUST be sampled or aggregated.
+- A prolonged internal outage MUST NOT silently downgrade an immediate-recovery loop into a slow backoff policy. Capacity protection belongs in bounded connection attempts, admission control, and per-peer concurrency rather than added recovery latency.
 - Stable `event_id`, operation ID, epoch, checksum, or expected version MUST make a repeated operation safe.
 - Never depend on exactly-once delivery from NATS, Kafka, Redis Streams, HTTP, or a process boundary.
 - Partial progress MUST be discoverable so restart resumes rather than begins an unsafe duplicate transition.
@@ -387,7 +389,7 @@ Before implementing:
 
 1. Read this document and the owning repository's README, architecture, status, and current TODO.
 2. Inspect Git status and recent commits; preserve unrelated work.
-3. Name the durability boundary, fast path, recovery source, idempotency key, timeout, and retry policy.
+3. Name the durability boundary, fast path, recovery source, idempotency key, timeout, and retry class: immediate real-time recovery, bounded request retry, or background backoff.
 4. Check whether the service is multi-instance, multi-node, draining, reconnecting, or replaying—even if local Compose has one replica.
 5. Identify which external dependencies need interfaces and fakes.
 6. State any material assumption that changes product behavior.
