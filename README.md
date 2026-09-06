@@ -1,14 +1,8 @@
-# Saturday Dinner Club Intent
+# Engineering Intent
 
-This repository records the engineering intent shared by the Saturday Dinner Club quanta. It is not an API specification and does not replace each repository's architecture documents. Its purpose is to preserve the reasoning, defaults, and working rules that should survive across implementations and future sessions.
+This repository records reusable software-engineering principles rather than the architecture or status of any particular product, service, or repository.
 
-Start with [`docs/engineering-intent.md`](docs/engineering-intent.md). It contains:
+- [`docs/engineering-intent.md`](docs/engineering-intent.md) is the human-readable statement of the philosophy and its reasoning.
+- [`skills/engineering-intent/SKILL.md`](skills/engineering-intent/SKILL.md) turns that philosophy into concise instructions for a coding agent.
 
-- the hierarchy used when requirements conflict;
-- system-wide architecture and reliability principles;
-- durable and best-effort messaging boundaries;
-- implementation, observability, testing, deployment, and Git conventions;
-- current Stream, Chat, Accounts, Channel, and Log decisions;
-- a re-entry checklist for maintainers and coding agents.
-
-When a quantum intentionally diverges, record the exception in that quantum first and then update this repository if the decision is reusable. The latest explicit product decision takes precedence over this document.
+Product contracts, technology choices, ports, schemas, deployment values, and implementation status remain in their owning repositories. The latest explicit user decision and the current system's documented invariants take precedence over this general guidance.
