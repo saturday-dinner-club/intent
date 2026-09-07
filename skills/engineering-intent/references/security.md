@@ -40,6 +40,22 @@ Network placement, transport security, authentication, authorization, confidenti
 
 A trusted network MAY justify omitting application-level peer authentication for a specific internal path. That choice must be explicit, scoped, and revisited when topology or exposure changes.
 
+### Treat external input as both data and work
+
+Every boundary input is untrusted until its syntax, semantics, authority, and resource cost have been evaluated. This includes API fields, URLs, redirects, uploaded files, media streams, serialized messages, compressed bodies, archive members, templates, and generated content.
+
+Apply limits before expensive work whenever possible:
+
+- bound encoded and decoded size, nesting depth, collection count, field length, duration, and processing time;
+- allow only required URL schemes, destinations, ports, redirect behavior, and resolved network ranges for server-side fetches;
+- reapply destination policy after DNS resolution and every redirect rather than validating only the original URL text;
+- detect file type from validated content when type matters instead of trusting a name or client header;
+- account for decompression, parsing, transcoding, rendering, regex, and fan-out amplification;
+- isolate high-risk parsers or converters according to their actual exploit and resource impact;
+- reject ambiguous encodings and avoid validating one representation before executing a differently normalized representation.
+
+Validation errors should reveal enough for the caller to correct safe input without exposing internal paths, queries, credentials, parser state, or neighboring resources. Fuzzing, malformed-input suites, and maximum-cost cases are appropriate evidence for parsers and externally supplied binary formats.
+
 ## 4. Separate identity proof from domain authority
 
 An identity system proves or asserts who is acting. The quantum that owns a resource SHOULD decide what that identity may do with the resource.
@@ -119,6 +135,21 @@ Locked or guarded memory MAY reduce swapping, accidental copying, and post-use r
 
 Protected memory is defense in depth. It does not protect a secret from code already executing with the process's authority.
 
+### Protect the software supply chain
+
+Source code is only one input to a deployed system. Dependencies, build tools, generated code, base images, CI actions, package registries, and release credentials also cross trust boundaries.
+
+- Keep direct dependencies intentional and remove unused ones.
+- Lock or otherwise record resolved dependency versions so builds can be reproduced and reviewed.
+- Obtain packages and tools from known sources and verify checksums, signatures, or provenance when the ecosystem supports them.
+- Make generated code reproducible from a reviewed schema, generator, and configuration; treat unexplained generated diffs as code changes.
+- Associate an artifact with its source revision, build inputs, and builder identity where operational risk justifies it.
+- Keep build workers and release credentials least-privileged and separate from ordinary application credentials.
+- Prefer minimal runtime images and exclude compilers, test fixtures, source credentials, and unrelated tools from the final artifact.
+- Produce a software inventory or SBOM when incident response, customer assurance, or regulation needs reliable dependency discovery.
+
+Automated vulnerability and secret scanners provide evidence, not a proof of safety. Triage findings according to reachability, exposure, compensating controls, and update risk. Conversely, the absence of a published vulnerability does not establish that an abandoned or unverifiable dependency is safe.
+
 ## 8. Design key rotation as a protocol
 
 Rotation is not a periodic key-generation job alone. It is a compatibility window between issuers and verifiers.
@@ -148,6 +179,25 @@ Do not set one universal failure policy.
 - Break-glass behavior requires narrow scope, strong audit, expiry, and explicit operator intent.
 
 Record which dependency is authoritative, which projection may be stale, and how a delayed revocation is re-evaluated.
+
+### Plan for compromise and recovery
+
+Design high-impact credentials and security services under the assumption that either a secret may be exposed or an authorized component may act incorrectly.
+
+For each material compromise class, define:
+
+- how it is detected and who may declare the incident;
+- the identities, credentials, data, regions, and time range in its possible blast radius;
+- how issuance or mutation can be stopped without relying on the suspected component;
+- how keys, sessions, tokens, grants, caches, and derived projections are revoked or re-evaluated;
+- how clean replacements are generated, distributed, and activated;
+- which durable audit evidence must be preserved without retaining the compromised secret;
+- how service is restored in stages and how recovery is verified;
+- how affected users or operators are notified when required.
+
+Distinguish secret compromise from permanent key loss. Compromise requires distrust and replacement; loss may make encrypted data or signed-state recovery impossible even when no attacker is present.
+
+Emergency controls should be narrow, authenticated through an independent path where practical, time-bounded, and strongly audited. Periodically exercise rotation, revocation, cache invalidation, restore, and break-glass procedures before an incident makes them the only available path.
 
 ## 10. Treat sensitive data placement as architecture
 
