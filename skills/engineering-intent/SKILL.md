@@ -15,7 +15,7 @@ Before substantive action, read [references/general-engineering.md](references/g
 
 Read every reference whose condition applies to the task. Do not read unrelated references merely because they exist.
 
-- Read [references/quantum-and-monorepo.md](references/quantum-and-monorepo.md) when defining or reviewing ownership boundaries, repository boundaries, deployable processes, package placement, isolated development, release independence, or the meaning of a quantum.
+- Read [references/quantum-and-monorepo.md](references/quantum-and-monorepo.md) when defining or reviewing a complete independently operable quantum, ownership and data boundaries, monorepo scope, deployable processes, logical infrastructure ownership, package placement, isolated development, release independence, or effective change and failure coupling.
 - Read [references/security.md](references/security.md) when the work involves trust boundaries, authentication, authorization, credentials, secrets, personal or sensitive data, cryptography, abuse controls, retention, or deletion.
 - Read [references/interfaces-and-contracts.md](references/interfaces-and-contracts.md) when designing or changing APIs, RPCs, events, schemas, storage abstractions, shared libraries, generated clients, error semantics, versioning, or compatibility.
 - Read [references/system-architecture.md](references/system-architecture.md) when relating multiple quanta or systems, selecting synchronous versus asynchronous interaction, evaluating dependency direction and failure propagation, or planning cross-system integration and whole-system validation.
