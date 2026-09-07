@@ -21,6 +21,19 @@ When guidance conflicts, use this order:
 3. this general engineering guidance;
 4. implementation convenience.
 
+### Preserve reproducible reasoning
+
+The reusable result of engineering work is not only the code that happened to work once. Preserve enough context to repeat and revise the decision:
+
+- the observed problem and constraints;
+- the authority and invariants that shaped the solution;
+- the meaningful alternatives and trade-offs;
+- the implementation and migration path;
+- the tests and runtime evidence obtained;
+- the remaining uncertainty and externally owned validation.
+
+This is especially important for AI-assisted work. Treat generated code as a proposed implementation inside the system's context, not as an unexplained successful roll of the dice. The human or agent continuing the work should be able to understand why the boundaries and mechanisms exist and reproduce the verification path.
+
 ## 2. Build complete behavior
 
 Prefer the smallest useful vertical slice over a collection of disconnected components. A feature is complete when its externally meaningful behavior is connected through the relevant contract, state transition, runtime path, failure handling, observability, tests, deployment shape, and documentation.
@@ -256,3 +269,5 @@ An update SHOULD explain:
 - what compatibility, migration, or operational consequence follows.
 
 This reference should remain opinionated enough to change decisions and general enough to apply without knowing which repository is open.
+
+The emphasis on reproducible engineering is also informed by snowmerak's [바이브코딩에 대한 생각](https://github.com/snowmerak/snowmerak/blob/main/content/posts/057_a_developer_with_ai.md). The post's durable lesson is to preserve the problem-solving process and context, not to standardize one model, harness, or autonomy level.
