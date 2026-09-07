@@ -19,6 +19,7 @@ Read every reference whose condition applies to the task. Do not read unrelated 
 - Read [references/security.md](references/security.md) when the work involves trust boundaries, authentication, authorization, credentials, secrets, personal or sensitive data, cryptography, abuse controls, retention, or deletion.
 - Read [references/interfaces-and-contracts.md](references/interfaces-and-contracts.md) when designing or changing APIs, RPCs, events, schemas, storage abstractions, shared libraries, generated clients, error semantics, versioning, or compatibility.
 - Read [references/system-architecture.md](references/system-architecture.md) when relating multiple quanta or systems, selecting synchronous versus asynchronous interaction, evaluating dependency direction and failure propagation, or planning cross-system integration and whole-system validation.
+- Read [references/technology-preferences.md](references/technology-preferences.md) when selecting or reviewing programming languages, runtimes, databases, caches, brokers, storage, transports, serialization, media tooling, browser SDKs, observability stacks, build tools, or deployment tooling. Treat its choices as evidence-backed defaults, not mandates.
 
 When multiple conditions apply, read the relevant references together and resolve overlap in favor of the narrower guidance. The latest explicit user decision remains authoritative.
 
