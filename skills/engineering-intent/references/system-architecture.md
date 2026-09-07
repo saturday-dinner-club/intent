@@ -300,17 +300,3 @@ A diagram containing product logos and bidirectional arrows but no semantics is 
 | Capacity | What bounds queues, retries, fan-out, and in-flight work? |
 | Evolution | Can adjacent versions coexist and roll back independently? |
 | Evidence | Which claims require umbrella, failure, load, or external-client tests? |
-
-## 19. Historical source notes
-
-This reference distills recurring ideas from snowmerak's writings on project architecture, distributed roles and responsibilities, service planning, log streams, eventual consistency, quantum modular architecture, and sidecars. Exact cloud products, message brokers, folder layouts, and language choices remain examples; the reusable content is the ownership and failure reasoning behind them.
-
-Primary source material:
-
-- [프로젝트 설계에 대해](https://github.com/snowmerak/snowmerak/blob/main/content/posts/030_architect.md) — role-focused components, dependency direction, aggregation, messaging, and lifecycle bounds.
-- [분산 서비스에서의 R&R](https://github.com/snowmerak/snowmerak/blob/main/content/posts/034_RnR.md) — gray-zone ownership, domain boundaries, aggregation, and authentication dependencies.
-- [서비스 기획자](https://github.com/snowmerak/snowmerak/blob/main/content/posts/035_service_planner.md) — architecture foundations, operational conventions, and explicit boundary responsibility.
-- [로그 스트림](https://github.com/snowmerak/snowmerak/blob/main/content/posts/041_log_stream.md) — durable event flow, indexing, replay, and observation as separate responsibilities.
-- [MSA에서 데이터 일관성](https://github.com/snowmerak/snowmerak/blob/main/content/posts/043_data_consistency_in_msa.md) — strong versus eventual consistency, projections, sagas, and delayed-event recovery.
-- [Quantum Modular Architecture](https://github.com/snowmerak/snowmerak/blob/main/content/posts/048_qma.md) — independently operable quanta, platform separation, facades, and runtime loose coupling.
-- [Sidecar](https://github.com/snowmerak/snowmerak/blob/main/content/posts/050_sidecar.md) — capability-bearing local processes and their lifecycle cost.

@@ -325,16 +325,3 @@ Before approving a boundary, answer:
 | Capability | How do peers negotiate optional features and reject unsafe downgrade? |
 | Recovery | How is lost or stale derived state repaired? |
 | Evidence | Which tests prove implementations are substitutable? |
-
-## 16. Historical source notes
-
-This reference distills recurring ideas from snowmerak's writings on testable code, interface substitution, structured errors, Protobuf and Buf, project boundaries, architecture quanta, and useful sidecars. Concrete package layouts, old generator versions, and protocol-specific examples remain historical examples rather than universal rules.
-
-Primary source material:
-
-- [에러 처리 in Go](https://github.com/snowmerak/snowmerak/blob/main/content/posts/001_error-handling.md) and [RFC 7807](https://github.com/snowmerak/snowmerak/blob/main/content/posts/029_rfc_7807.md) — stable machine-readable errors separated from diagnostic text.
-- [테스트 가능한 코드](https://github.com/snowmerak/snowmerak/blob/main/content/posts/016_testable_code.md) and [Liskov Substitution Principle](https://github.com/snowmerak/snowmerak/blob/main/content/posts/031_liskov_substitution_principle.md) — dependency inversion, cohesive roles, and behavioral substitution.
-- [Protobuf with Buf](https://github.com/snowmerak/snowmerak/blob/main/content/posts/025_protobuf_with_buf.md) — one IDL, automated generation, compatibility, and versioned distribution.
-- [AntiSerial](https://github.com/snowmerak/antiserial) — a static tagless format for simple high-performance objects with explicit append-only and buffer-lifetime trade-offs.
-- [Quantum Modular Architecture](https://github.com/snowmerak/snowmerak/blob/main/content/posts/048_qma.md) — separation of abstract contracts from concrete implementations and composition roots.
-- [Sidecar](https://github.com/snowmerak/snowmerak/blob/main/content/posts/050_sidecar.md) — process boundaries that add real cross-language or operational capability.

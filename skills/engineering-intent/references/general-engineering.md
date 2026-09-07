@@ -269,5 +269,3 @@ An update SHOULD explain:
 - what compatibility, migration, or operational consequence follows.
 
 This reference should remain opinionated enough to change decisions and general enough to apply without knowing which repository is open.
-
-The emphasis on reproducible engineering is also informed by snowmerak's [바이브코딩에 대한 생각](https://github.com/snowmerak/snowmerak/blob/main/content/posts/057_a_developer_with_ai.md). The post's durable lesson is to preserve the problem-solving process and context, not to standardize one model, harness, or autonomy level.

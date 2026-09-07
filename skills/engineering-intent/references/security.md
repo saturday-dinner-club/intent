@@ -245,14 +245,3 @@ Security tests SHOULD cover the boundaries rather than only cryptographic happy 
 - deletion across primary data and derived projections.
 
 Use official test vectors and maintained libraries for cryptographic primitives. Do not invent a primitive or protocol as part of ordinary application work.
-
-## 13. Historical source notes
-
-This reference distills recurring ideas from snowmerak's writings on namespace authentication and public-key verification, protected secret memory, and explainable relationship authorization. Algorithm-specific experiments in older posts are historical evidence, not current recommendations. Revalidate standards, libraries, and cryptographic algorithms against current primary sources before implementation.
-
-Primary source material:
-
-- [더 나은 제안, KEMTLS](https://github.com/snowmerak/snowmerak/blob/main/content/posts/000_kemtls.md) — historical post-quantum protocol exploration; retain the agility lesson, not its algorithm selection.
-- [분산 서비스에서의 R&R](https://github.com/snowmerak/snowmerak/blob/main/content/posts/034_RnR.md) — local verification and public-key distribution across service boundaries.
-- [메모리에 소금 뿌리기](https://github.com/snowmerak/snowmerak/blob/main/content/posts/052_libsodium.md) — protected-memory lifecycle, zeroization, and selective use according to cost.
-- [Opinionated Zanzibar](https://github.com/snowmerak/snowmerak/blob/main/content/posts/058_rebac.md) — constrained and explainable relationship authorization.
