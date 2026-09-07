@@ -35,7 +35,7 @@ Audience: maintainers, reviewers, and coding agents
 구현 기본값:
 
 - framework보다 표준 라이브러리와 작은 명시적 adapter를 먼저 검토한다.
-- PostgreSQL은 `pgx/v5`, Redis는 `rueidis`, Cassandra는 `gocql`, Kafka는 `franz-go`, NATS는 공식 Go client/server를 우선한다.
+- Go의 관계형 DB 접근은 명시적인 SQL을 유지하면서 typed code를 생성하는 `sqlc`를 선호하고, PostgreSQL driver/pool은 `pgx/v5`를 우선한다. Redis는 `rueidis`, Cassandra는 `gocql`, Kafka는 `franz-go`, NATS는 공식 Go client/server를 우선한다.
 - module 버전은 각 레포가 고정한다. 현재 모든 Go 퀀텀이 같은 Go toolchain을 쓰는 사실을 영구적인 버전 정책으로 일반화하지 않는다.
 - 재현 가능한 release/container build가 중요하면 dependencies를 vendor한다. sibling `replace`는 로컬 개발 편의이며 배포 계약이 아니다.
 
@@ -84,7 +84,7 @@ Python이 더 자연스러운 자동화, 데이터 처리, ML, 분석 또는 운
 
 ## 3. 관계형 상태와 트랜잭션
 
-### PostgreSQL + `pgx`: canonical transactional state의 기본
+### PostgreSQL + `pgx`/`sqlc`: canonical transactional state의 기본
 
 계정, 세션, 소유권, 정책 command, transactional outbox처럼 관계와 불변식이 중요한 상태는 PostgreSQL을 우선한다.
 
@@ -103,6 +103,8 @@ Python이 더 자연스러운 자동화, 데이터 처리, ML, 분석 또는 운
 - multi-region active-active는 단순 multi-primary 선언으로 해결하지 않는다. home shard, fencing, conflict rule과 replication 범위를 도메인별로 설계한다.
 
 MySQL도 workload, 운영 환경, 기존 전문성과 생태계가 더 잘 맞으면 OLTP authority로 선택할 수 있다. PostgreSQL 선호는 MySQL을 배제한다는 뜻이 아니며, 아래 CDC projection 패턴은 둘 모두에 적용한다.
+
+Go에서 `sqlc`를 선호 ORM이라고 부르지만, 정확히는 runtime object mapper가 아니라 작성한 SQL과 schema에서 type-safe Go code를 생성하는 도구다. query plan과 transaction 경계를 SQL로 명시하면서 반복적인 scan/binding 코드를 줄일 수 있다는 점을 선호한다. 아주 작거나 동적인 query에는 driver를 직접 사용할 수 있고, `sqlc`를 쓰기 위해 부자연스러운 query contract를 만들지는 않는다.
 
 ### OLTP CDC → durable log → hot projection
 
@@ -127,6 +129,15 @@ PostgreSQL / MySQL authoritative transaction
 - Redis는 매우 빠른 bounded hot state에, Cassandra는 큰 시간·키 범위의 지속 가능한 read model에 우선한다. 둘을 단지 같은 의미의 cache로 취급하지 않는다.
 
 Kafka는 이 패턴의 선호 전달 계층이지만 CDC connector 호환성, replay 요구와 운영 규모에 따라 동등한 durable log를 사용할 수 있다. projection은 교체·재구축 가능한 파생 상태이며 canonical mutation은 계속 OLTP owner를 거친다.
+
+### Embedded database: SQLite 또는 Pebble
+
+별도 database service 없이 한 process나 한 node가 로컬 상태를 소유해야 하면 SQLite와 Pebble을 우선 검토한다.
+
+- 관계형 schema, transaction, secondary index, ad-hoc query와 관리 도구가 필요하면 SQLite를 선택한다.
+- ordered key-value access, prefix/range scan, LSM 기반 write pattern과 application이 직접 정의하는 encoding이 더 적합하면 Pebble을 선택한다.
+- 둘 모두 한 process/node의 embedded persistence이지 분산 합의나 multi-node replication을 제공하지 않는다. file ownership, 동시 접근, backup/restore, corruption recovery와 schema/encoding migration을 application lifecycle에 포함한다.
+- 임시 cache인지 재구축 가능한 projection인지 유일한 durable copy인지 먼저 정하고, 유일한 copy라면 crash consistency와 복구 검증을 강화한다.
 
 ## 4. Redis
 
@@ -182,7 +193,7 @@ Core NATS는 빠른 room fan-out, system notification, request/reply와 내부 d
 
 JetStream은 기본값이 아니다. delivery 자체가 durable contract가 되면 Kafka와 Redis Streams를 포함해 ownership, replay, operations를 다시 비교한 뒤 선택한다. Core NATS 누락을 재시도 backlog로 바꾸면 원래의 낮은 지연과 장애 격리 의도를 훼손할 수 있다.
 
-## 6. 대규모 history와 객체 데이터
+## 6. 대규모 history, 객체 데이터와 검색
 
 ### Cassandra + `gocql`: 시간 순 고쓰기 history와 multi-DC projection
 
@@ -214,6 +225,25 @@ JetStream은 기본값이 아니다. delivery 자체가 durable contract가 되�
 - deterministic local adapter로 빠른 테스트를 하면서 production object store의 실패 의미를 별도 integration suite로 확인할 수 있다.
 
 S3 versioning, replication, lifecycle와 deletion은 비용·법적 보존·복구 목표에 따라 bucket owner가 명시한다. 현재 Stream의 미디어 bucket은 versioning 없이 series 단위 삭제와 post-live part 정리를 전제로 하지만 이를 모든 object data의 기본으로 일반화하지 않는다.
+
+### BM25와 vector search
+
+검색 index는 canonical source가 아니라 재구축 가능한 query projection으로 취급한다. OLTP CDC나 durable event log에서 문서 version과 삭제를 받아 idempotent하게 materialize하고, analyzer·embedding model·index schema version과 rebuild/alias 전환 절차를 함께 관리한다.
+
+| 검색 요구 | 우선 검토 기술 | 선택 기준 |
+| --- | --- | --- |
+| application에 내장된 BM25/full-text | Bleve | 작은 단일-node 또는 process-local index, 별도 search cluster를 운영할 이유가 적을 때 |
+| 공유·분산 BM25/full-text | OpenSearch | 여러 producer/consumer, shard/replica, aggregation과 중앙 운영이 필요할 때 |
+| BM25 + vector hybrid search | OpenSearch | lexical score와 vector score를 한 query/index 운영 경계에서 조합해야 할 때 |
+| vector-only search | Qdrant | 핵심 workload가 nearest-neighbor/vector filtering이고 full-text 기능이 필요하지 않을 때 |
+| 분산 vector search와 기존 OpenSearch 운영 결합 | OpenSearch | 별도 vector database보다 하나의 search platform으로 운영하는 편이 유리할 때 |
+
+따라서 BM25에는 Bleve와 OpenSearch를, vector search에는 높은 우선순위로 OpenSearch와 Qdrant를 고려한다. 일반 기본값은 **hybrid search면 OpenSearch, vector-only면 Qdrant**다.
+
+- Bleve는 embedded 선택이므로 index file의 단일 writer, process lifecycle, rebuild와 backup 책임이 application에 붙는다.
+- OpenSearch와 Qdrant는 외부 cluster dependency이므로 readiness, timeout, bulk backpressure, shard/collection sizing과 degraded query behavior를 명시한다.
+- BM25 analyzer/tokenizer와 vector embedding은 의미 계약이다. model 또는 analyzer 변경은 같은 index에 조용히 섞지 않고 versioned rebuild와 평가를 거친다.
+- 검색 품질은 engine 선택만으로 증명되지 않는다. 대표 query set으로 relevance, recall, latency와 resource cost를 함께 검증한다.
 
 ## 7. API, wire format와 transport
 
