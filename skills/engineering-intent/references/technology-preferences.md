@@ -8,7 +8,7 @@ Audience: maintainers, reviewers, and coding agents
 
 ## 1. 문서의 성격
 
-이 문서는 Saturday Dinner Club 프로젝트들에서 반복적으로 확인된 기술 선택과 그 근거를 정리한다. 새 구현을 시작할 때 탐색 공간을 줄이기 위한 기본값이지, 모든 문제에 동일한 스택을 강제하는 목록은 아니다.
+이 문서는 Saturday Dinner Club 프로젝트들에서 반복적으로 확인되었거나 소유자가 명시적으로 정한 기술 선택과 그 근거를 정리한다. 새 구현을 시작할 때 탐색 공간을 줄이기 위한 기본값이지, 모든 문제에 동일한 스택을 강제하는 목록은 아니다.
 
 기술은 다음 순서로 선택한다.
 
@@ -17,7 +17,7 @@ Audience: maintainers, reviewers, and coding agents
 3. 선호 기술이 맞지 않으면 다른 기술을 선택하되, 달라진 요구와 운영 비용을 기록한다.
 4. 제품별 버전, 토폴로지, 스키마와 튜닝 값은 해당 퀀텀의 문서와 manifest가 소유한다.
 
-여기서 `기본`은 여러 퀀텀에서 반복 사용되어 새 작업에도 우선 검토할 선택, `조건부`는 특정 workload에서 선호하는 선택, `실험`은 구현 또는 가능성은 확보했지만 운영 기본값으로 확정하지 않은 선택을 뜻한다.
+여기서 `기본`은 여러 퀀텀에서 반복 사용되었거나 명시적으로 정해져 새 작업에도 우선 검토할 선택, `조건부`는 특정 workload에서 선호하는 선택, `실험`은 구현 또는 가능성은 확보했지만 운영 기본값으로 확정하지 않은 선택을 뜻한다.
 
 ## 2. 언어와 런타임
 
@@ -101,6 +101,32 @@ Python이 더 자연스러운 자동화, 데이터 처리, ML, 분석 또는 운
 - broker에 내구 기록이 확인된 outbox row는 삭제하거나 bounded archive로 옮긴다. 무기한 쌓아 두지 않는다.
 - backup, PITR, migration과 connection exhaustion은 PostgreSQL을 택한 순간 함께 소유한다.
 - multi-region active-active는 단순 multi-primary 선언으로 해결하지 않는다. home shard, fencing, conflict rule과 replication 범위를 도메인별로 설계한다.
+
+MySQL도 workload, 운영 환경, 기존 전문성과 생태계가 더 잘 맞으면 OLTP authority로 선택할 수 있다. PostgreSQL 선호는 MySQL을 배제한다는 뜻이 아니며, 아래 CDC projection 패턴은 둘 모두에 적용한다.
+
+### OLTP CDC → durable log → hot projection
+
+OLTP의 committed change를 CDC로 읽고 Kafka 같은 durable log를 통해 전달한 뒤, Redis나 Cassandra에 query-optimized projection을 만드는 구조를 선호한다.
+
+```text
+PostgreSQL / MySQL authoritative transaction
+  → transaction log 기반 CDC
+  → Kafka 또는 동등한 durable change log
+  → idempotent materializer
+  → Redis hot cache / Cassandra read model
+  → latency-sensitive query
+```
+
+이 구조의 목표는 쓰기 권위를 OLTP에 유지하면서 read path가 매번 OLTP나 원격 authority를 기다리지 않게 하여, 최신 projection이 준비된 정상 경로에서 유사 zero-latency 조회를 제공하는 것이다. 변경 전파 자체가 실제로 0초이거나 즉시 일관적이라고 주장하지 않는다.
+
+- application이 OLTP와 cache/broker에 직접 이중 쓰기하지 않고 committed transaction log를 change source로 삼는다.
+- CDC record에는 source coordinate 또는 안정적인 change identity, entity identity, operation, schema version과 필요한 ordering/version 정보를 보존한다.
+- materializer는 duplicate와 replay에 멱등하고, delete/tombstone과 out-of-order change를 명시적으로 처리한다.
+- 초기 snapshot과 이어지는 CDC log 사이에 gap이나 중복이 없도록 bootstrap 및 resume 지점을 관리한다.
+- projection lag, consumer failure와 rebuild 진행률을 계측한다. 최신성이 필수인 query는 authority fallback, version check 또는 fail-closed 중 도메인에 맞는 동작을 정한다.
+- Redis는 매우 빠른 bounded hot state에, Cassandra는 큰 시간·키 범위의 지속 가능한 read model에 우선한다. 둘을 단지 같은 의미의 cache로 취급하지 않는다.
+
+Kafka는 이 패턴의 선호 전달 계층이지만 CDC connector 호환성, replay 요구와 운영 규모에 따라 동등한 durable log를 사용할 수 있다. projection은 교체·재구축 가능한 파생 상태이며 canonical mutation은 계속 OLTP owner를 거친다.
 
 ## 4. Redis
 
@@ -197,6 +223,13 @@ S3 versioning, replication, lifecycle와 deletion은 비용·법적 보존·복�
 
 Internal HTTP가 곧 신뢰 경계를 없애지는 않는다. private network 접근 제어만 쓰는 endpoint는 그 배포 전제를 문서화하고 public ingress에서 차단한다. mTLS는 모든 내부 hop의 강제 기본값이 아니며 실제 위협 모델과 운영 능력으로 결정한다.
 
+외부 TLS는 가능한 한 Nginx, Caddy 또는 동등한 edge reverse proxy/load balancer에서 종료하고, 통제된 private network 안의 application hop은 HTTP로 단순하게 유지하는 방식을 선호한다. Nginx와 Caddy 사이에는 전역 우선순위를 두지 않고 인증서 자동화, 동적 discovery, 설정 복잡도와 운영 환경으로 고른다.
+
+- edge는 외부에서 들어온 `Forwarded`/`X-Forwarded-*` 값을 제거하거나 신뢰 가능한 값으로 덮어쓰고 application은 지정된 proxy에서 온 metadata만 신뢰한다.
+- 원래 scheme, host, client address와 request identity가 권한, redirect, cookie 또는 audit에 영향을 주면 전달 계약을 명시한다.
+- backend network가 shared/untrusted이거나 cross-region·규제·위협 모델상 기밀성과 peer authentication이 필요하면 내부 TLS 또는 mTLS를 사용한다. edge termination 선호가 이 요구를 무효화하지 않는다.
+- health check와 내부 service port가 실수로 public ingress에 노출되지 않도록 network policy와 listener binding을 함께 관리한다.
+
 ### Protocol Buffers, gRPC와 Buf
 
 타입이 있는 내부 control RPC, streaming command/watch API와 다언어 generated client에는 Protocol Buffers와 gRPC를 우선 검토한다. schema lint, breaking-change 검사와 reproducible generation에는 Buf를 선호한다.
@@ -249,6 +282,18 @@ Accounts 계열의 현재 선호는 다음과 같다.
 
 구체 parameter, key lifetime, migration과 threat model은 [security.md](security.md)와 Accounts 소유 문서를 따른다. cryptographic agility는 downgrade 허용이나 임의 algorithm 선택 endpoint를 뜻하지 않는다.
 
+### Hash는 BLAKE 계열 우선
+
+새로운 내부 hash를 선택할 수 있고 외부 표준이나 wire protocol이 알고리즘을 강제하지 않는다면 BLAKE 계열을 우선한다. BLAKE2와 BLAKE3 중에서는 target language의 유지보수되는 구현, interoperability, keyed mode 필요 여부, streaming/parallel workload와 digest 수명으로 선택한다.
+
+- content identity, deduplication, cache key derivation과 고처리량 integrity fingerprint가 대표적인 적용 대상이다.
+- 알고리즘과 digest 길이는 persisted data 또는 wire contract에 version/profile로 기록하여 교체와 재계산을 가능하게 한다.
+- 표준이 SHA 계열을 요구하는 JWT/JWK thumbprint, WebAuthn, HMAC 기반 외부 계약 등을 임의로 BLAKE로 바꾸지 않는다.
+- password hashing에는 계속 Argon2id처럼 해당 목적의 password KDF를 사용한다.
+- 우발적 손상 검출만 필요한 CRC32C 같은 비암호 checksum을 보안 hash로 오해하지도, 무조건 더 비싼 hash로 교체하지도 않는다.
+
+이 선호는 향후 구현의 기본값이며 기존 저장 형식이나 protocol을 즉시 migration하라는 지시가 아니다.
+
 ## 10. 관측 가능성
 
 ### zerolog facade + OpenTelemetry
@@ -271,7 +316,7 @@ Prometheus, Grafana, Tempo, Loki와 OTel Collector로 구성한 stack은 유용�
 - 로컬 통합 환경은 Docker Compose로 해당 퀀텀과 필요한 dependency만 올린다.
 - 기본 Compose가 다른 퀀텀 전체를 요구하지 않게 contract-compatible stub/fake와 pairwise tests를 둔다.
 - Kubernetes는 현재 필수 배포 플랫폼이 아니다. 도입하면 기존 process lifecycle, storage ownership과 failure boundary를 가리지 않아야 한다.
-- Nginx는 local routing, TLS termination 또는 DNS re-resolution에 사용할 수 있지만 business authority가 아니다.
+- Nginx나 Caddy는 edge TLS termination, routing 또는 DNS re-resolution에 사용할 수 있지만 business authority가 아니다.
 - content-first site에는 Hugo, app/interactive demo에는 Vite가 현재 사용된다. 이는 도메인 backend 선택과 별개다.
 
 Graceful shutdown, bounded drain, dependency-aware readiness와 telemetry flush는 runtime 선택의 일부다. 컨테이너가 시작된 사실만으로 service가 assignment를 받을 준비가 된 것은 아니다.
@@ -294,25 +339,8 @@ Graceful shutdown, bounded drain, dependency-aware readiness와 telemetry flush�
 
 - React: Stream Lab의 UI 선택이며 SDK core의 필수 framework가 아니다.
 - Svelte: compatibility example과 개발 검증 대상이며 유일한 UI framework가 아니다.
-- Nginx: 일부 로컬 router/proxy implementation이다.
+- Nginx와 Caddy: edge TLS/proxy 역할의 대체 가능한 구현이며 한 제품으로 전역 고정하지 않는다.
 - Docker Compose의 image version과 single-node topology: 재현 가능한 개발 fixture다.
 - Kubernetes 부재: 금지 결정이 아니라 VM-first 현재 우선순위다.
 - WebTransport 구현: WebSocket을 대체했다는 뜻이 아니다.
 - 한 퀀텀의 persistence/retention 설정: 같은 제품의 다른 Redis, bucket, table에도 자동 적용되지 않는다.
-
-## 14. 현재 근거 범위
-
-이 문서는 2026-09-07 시점의 다음 로컬 레포를 근거로 정리했다.
-
-| 레포 | 확인된 선택의 주된 근거 |
-| --- | --- |
-| `accounts` | Go, PostgreSQL, 분리 Redis, pgx/rueidis, Passkey/TOTP/DBSC, Ed25519/JWKS, memguard, Docker/HTTPS |
-| `channel` | 작은 Go/HTTP bootstrap, PostgreSQL authority, isolated Compose와 contract stub 방향 |
-| `chat` | Go Edge/Publisher, PostgreSQL outbox, Kafka, embedded Core NATS, Cassandra, 분리 Redis, WebSocket/WebTransport, vanilla TS SDK |
-| `stream` | Go media orchestration, FFmpeg, RTMP/SRT, Protobuf/gRPC, framed TCP, Redis Streams, Cassandra/S3 adapters, LL-HLS, Shaka/TS player |
-| `log` | zerolog facade, OpenTelemetry/OTLP, bounded file rotation |
-| `civis` | Vite 기반 static/app frontend와 공유 design-system package |
-| `saturday-dinner-club` | Hugo 기반 content site |
-| `broadcast` | 아직 선택을 뒷받침할 구현 없음 |
-
-새 레포와 운영 경험이 쌓이면 반복된 선택인지, domain-specific 예외인지, 실패한 실험인지 다시 분류한다.
