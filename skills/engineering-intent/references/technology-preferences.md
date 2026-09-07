@@ -21,9 +21,9 @@ Audience: maintainers, reviewers, and coding agents
 
 ## 2. 언어와 런타임
 
-### Go: 백엔드와 장수명 프로세스의 기본
+### Go: 상태를 소유하는 백엔드와 장수명 프로세스의 기본
 
-상태를 소유하는 API, 네트워크 edge, worker, publisher, control plane과 운영 도구는 Go를 우선한다.
+도메인 상태와 전이의 권위를 소유하는 API, 네트워크 edge, worker, publisher와 control plane은 Go를 우선한다. 특히 transaction, lease, queue, 장수명 connection이나 여러 dependency의 lifecycle을 함께 소유하는 프로세스에 적용한다.
 
 선택 근거:
 
@@ -41,6 +41,23 @@ Audience: maintainers, reviewers, and coding agents
 
 Go가 부적합한 특화 codec, 브라우저 UI, 데이터 과학 작업까지 억지로 Go로 다시 만들지 않는다.
 
+### Sidecar와 ambassador: Go 또는 Rust 우선
+
+sidecar, ambassador, local proxy, protocol adapter처럼 다른 application과 함께 배포되어 data/control path를 중개하는 프로세스는 Go 또는 Rust를 우선한다. 이 선택은 현재 레포의 반복 사용뿐 아니라 명시적인 소유자 선호를 반영한다.
+
+- orchestration, 동시 연결, 빠른 구현과 기존 Saturday Dinner Club client 생태계 재사용이 중요하면 Go를 먼저 본다.
+- 낮은 runtime overhead, 엄격한 memory ownership, low-level protocol 처리나 resource predictability가 더 중요하면 Rust를 먼저 본다.
+- 어느 쪽이든 bounded buffering, backpressure, readiness, drain, peer application과의 version compatibility를 sidecar 계약으로 다룬다.
+
+### 무상태·특수목적 API: NestJS 또는 FastAPI 허용
+
+모든 API를 Go로 만들 필요는 없다. 권위 있는 상태 전이를 직접 소유하지 않고 요청을 가볍게 변환·조합하거나, 특정 내부 workload를 좁게 노출하는 무상태 API는 NestJS 또는 FastAPI를 선택할 수 있다.
+
+- TypeScript ecosystem, module 구조, validation과 application composition이 이점이면 NestJS를 사용한다. 관계형 DB 접근이 필요할 때 선호 ORM은 Prisma다.
+- Python library와 모델 실행이 중심인 LLM, 데이터 과학, 분석 worker/processor에는 Python을 사용한다. HTTP API가 필요하면 FastAPI를 우선 검토한다.
+- 상태 저장소를 사용한다는 이유만으로 API가 곧 상태 소유자가 되는 것은 아니다. canonical transition, transaction과 schema migration을 이 프로세스가 책임지면 다시 Go 기본값과 운영 근거를 비교한다.
+- framework 선택이 outbox, idempotency, timeout, backpressure, observability와 graceful shutdown 책임을 없애지는 않는다.
+
 ### TypeScript와 Node.js: 브라우저 SDK와 프런트엔드 도구의 기본
 
 브라우저 SDK, framework-independent player/client, 데모 UI와 frontend build tooling은 TypeScript와 Node.js 생태계를 우선한다.
@@ -48,13 +65,14 @@ Go가 부적합한 특화 codec, 브라우저 UI, 데이터 과학 작업까지 
 선택 근거:
 
 - wire contract와 공개 API를 타입으로 노출하면서 실제 브라우저 동작에 가까운 코드를 작성할 수 있다.
-- 하나의 vanilla core를 React, Svelte 또는 다른 UI에서 얇게 감쌀 수 있다.
+- 하나의 vanilla core를 Svelte, React 또는 다른 UI에서 얇게 감쌀 수 있다.
 - Vite, TypeScript compiler, Vitest와 jsdom 조합으로 빠른 build/test loop를 유지할 수 있다.
 
 구현 기본값:
 
-- SDK core는 DOM 또는 표준 Web API에 가까운 ESM으로 만들고 특정 UI framework를 필수 dependency로 두지 않는다.
-- React나 Svelte integration은 adapter/example로 제공한다. 한 데모 앱의 framework가 플랫폼 표준을 의미하지 않는다.
+- browser 기능과 SDK core는 vanilla DOM 또는 표준 Web API에 가까운 ESM으로 먼저 구현하고 특정 UI framework를 필수 dependency로 두지 않는다.
+- UI framework가 실제로 필요하면 Svelte를 기본으로 선택한다. React는 기존 소비자, component ecosystem 또는 integration 제약이 분명할 때 선택한다.
+- Svelte와 React integration은 가능한 한 얇은 lifecycle adapter/example로 제공한다. 우선순위는 **vanilla → Svelte → React**이며, framework 편의 때문에 core contract를 framework state model에 종속시키지 않는다.
 - 관련 package와 demo가 한 릴리스 경계를 이룰 때 npm workspaces와 하나의 lockfile을 사용한다.
 - Node.js는 현재 서버 runtime의 기본이라기보다 browser code의 build/test/tooling runtime이다.
 
