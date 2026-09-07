@@ -17,7 +17,7 @@ An interface is a semantic boundary. It states what another component may rely o
 Every contract MUST have an owning quantum or component responsible for:
 
 - semantic definitions;
-- the authoritative schema or IDL;
+- the authoritative IDL, schema, or explicitly designated code declaration;
 - compatibility policy;
 - version publication;
 - deprecation and migration;
@@ -26,7 +26,7 @@ Every contract MUST have an owning quantum or component responsible for:
 
 Shared ownership usually means no ownership. Consumers may contribute changes, but one owner accepts the compatibility and operational consequences.
 
-Generated artifacts are derivatives. The schema or IDL is the source of truth; copied generated code is not.
+The owner MUST designate exactly one source of truth. IDL-first, schema-first, and code-first contracts are all valid when their authority is explicit. Generated artifacts and copied declarations are derivatives; they do not become authoritative merely because consumers import them.
 
 ## 3. Model domain operations, not vendor calls
 
@@ -96,7 +96,14 @@ An event reports a fact that already occurred. Define:
 
 ### Projections and notifications
 
-A projection is derived state and MUST identify its repair source. A notification may be disposable only when the recipient can detect loss and recover through another path.
+A projection is derived state and MUST identify its repair source.
+
+Notifications fall into two classes:
+
+- A state-significant notification accelerates awareness of a durable fact. If it may be lost, the recipient needs a way to detect stale or missing state and recover from the authority or durable log.
+- A purely ephemeral notification, such as a transient presence pulse or typing indication, MAY be lost without repair when the product contract explicitly accepts its disappearance.
+
+Do not make an ephemeral signal durable by accident. Do not classify a state-significant transition as ephemeral merely because the current transport is lossy.
 
 ### Bulk and media data
 
@@ -122,7 +129,13 @@ If a caller relies on durability, an acknowledgment before the durability bounda
 
 Errors are machine-readable outcomes first and diagnostic text second.
 
-Define a stable taxonomy where callers need different actions, commonly:
+Classify errors along independent axes rather than encoding every property into one code:
+
+- **Domain meaning:** invalid input, not found, conflict, failed precondition, or another domain outcome.
+- **Retry disposition:** transient, permanent, or unknown until reconciled.
+- **Exposure:** safe public detail versus internal diagnostic context.
+
+Define stable domain codes where callers need different actions, commonly:
 
 - invalid input;
 - unauthenticated;
@@ -134,15 +147,17 @@ Define a stable taxonomy where callers need different actions, commonly:
 - rate limited or overloaded;
 - unavailable or transient dependency failure;
 - deadline exceeded or canceled;
-- internal or permanent failure.
+- internal failure.
 
 Error identity must not depend on comparing human text. Wrap lower-level causes without leaking provider internals or sensitive data across the boundary.
+
+Do not infer retryability from whether an error is internal. An internal error may be a transient dependency failure, an unknown partial transition, or a permanent implementation defect. The contract should expose retry guidance only when the authority can state it safely.
 
 For HTTP, use a standard structured problem representation and ordinary status semantics. For RPC or events, provide an equivalent stable code and optional typed details. Keep debugging context in internal logs and traces.
 
 ## 8. Make time and ordering explicit
 
-Distributed systems contain several clocks and orders. Contracts SHOULD distinguish:
+Distributed systems contain several clocks and orders. Contracts SHOULD distinguish the following times when they differ materially for correctness, latency, replay, or presentation:
 
 - when the domain fact occurred;
 - when the producer observed it;
@@ -172,6 +187,23 @@ Specify operational limits as part of compatibility:
 
 Without these bounds, consumers build assumptions that fail only under load.
 
+### Long-lived sessions and streams
+
+WebSocket, WebTransport, media, subscription, and other long-lived contracts need lifecycle semantics beyond an initial handshake. Define, when applicable:
+
+- connection establishment, authentication, capability negotiation, and readiness;
+- message or frame boundaries and maximum sizes;
+- ownership of heartbeats, idle timeout, and liveness detection;
+- ordering and concurrency within one connection;
+- normal close, half-close, cancellation, and abnormal disconnect;
+- reconnect policy, session identity, resume cursor, and replay window;
+- duplicate behavior after resume or retransmission;
+- make-before-break replacement when an existing healthy path must survive handoff;
+- server drain, client migration, and the point at which new work is refused;
+- protocol-version and feature downgrade behavior.
+
+A transport reconnect is not automatically a domain resume. State which session state survives, where it is stored, and which acknowledgment or cursor lets both sides agree on the continuation point.
+
 ## 10. Evolve additively, but deliberately
 
 Additive change is the default, not a substitute for policy.
@@ -187,9 +219,41 @@ Additive change is the default, not a substitute for policy.
 
 Breaking change may be correct when the old contract is unsafe or misleading. Make the break explicit, version it, migrate in stages, and retain evidence that old consumers are gone.
 
+Use an expand-migrate-contract sequence when persisted data or independently deployed consumers cannot change atomically:
+
+1. expand writers, readers, and schemas so old and new representations can coexist;
+2. migrate or backfill durable state with observable progress and restart safety;
+3. switch authority only after compatibility evidence exists;
+4. retain rollback compatibility for the declared window;
+5. contract the old representation after remaining use is disproven.
+
+### Compatibility dimensions
+
+Review compatibility along every dimension material to the boundary:
+
+- **Wire compatibility:** can each side parse and preserve the exchanged representation?
+- **Semantic compatibility:** do fields, codes, absence, and defaults retain the same meaning?
+- **Behavioral compatibility:** do operations preserve preconditions, state transitions, and duplicate behavior?
+- **Operational compatibility:** do size, latency, timeout, ordering, and throughput assumptions still hold?
+- **Capability compatibility:** can peers negotiate optional algorithms, codecs, features, and protocol extensions without unsafe downgrade?
+
+A message that still decodes may nevertheless be semantically or operationally incompatible.
+
 ## 11. Generate repetitive transport code
 
 An IDL can serve multiple languages and reduce hand-written serialization drift. Automate linting, compatibility checks, generation, and publication.
+
+### Select serialization by workload
+
+Use these project defaults after confirming language support, ecosystem compatibility, schema evolution, payload shape, and measured workload:
+
+- Prefer **Protocol Buffers** when serialization and deserialization costs are both material and a mature, balanced general-purpose contract is needed.
+- Prefer **FlatBuffers** when reads and deserialization dominate, and zero-copy or direct field access justifies its builder and object-model trade-offs.
+- Prefer [**AntiSerial**](https://github.com/snowmerak/antiserial) for structurally simple objects that require extreme serialization and deserialization performance, when its static tagless layout and stricter evolution rules are acceptable.
+
+AntiSerial's compact and projected representation depends on compile-time schema agreement. Its append-only field evolution, zero-versus-absent semantics, length bounds, generated-language support, and input-buffer lifetime are part of the contract rather than implementation details.
+
+Do not select a binary format from generic benchmark rankings alone. Benchmark representative schemas, field distributions, buffer ownership, generated code, target languages, and end-to-end copies. Wire stability and operational simplicity may outweigh local nanoseconds.
 
 Generated clients and DTOs SHOULD remain transport artifacts. Keep domain decisions, retries, authorization, caching, and workflow policy in handwritten code owned by the relevant quantum.
 
@@ -233,11 +297,13 @@ Contract verification SHOULD include:
 - schema or IDL compatibility checks;
 - golden wire vectors where byte or parser compatibility matters;
 - old-reader/new-writer and new-reader/old-writer tests;
+- capability negotiation and downgrade behavior;
 - unknown fields and enum values;
 - duplicate commands and events;
 - conflict, timeout, cancellation, and partial failure;
 - pagination during concurrent mutation;
 - maximum-size and overload behavior;
+- disconnect, reconnect, resume, duplicate, and drain behavior for long-lived sessions;
 - external reference clients where actual ecosystem compatibility matters.
 
 Golden vectors protect a known representation. They do not prove compatibility with real clients, browsers, hardware, or provider behavior.
@@ -256,6 +322,7 @@ Before approving a boundary, answer:
 | Failure | Which errors change caller behavior? |
 | Capacity | What is bounded and how is overload reported? |
 | Evolution | Can old and new versions coexist and roll back? |
+| Capability | How do peers negotiate optional features and reject unsafe downgrade? |
 | Recovery | How is lost or stale derived state repaired? |
 | Evidence | Which tests prove implementations are substitutable? |
 
@@ -268,5 +335,6 @@ Primary source material:
 - [에러 처리 in Go](https://github.com/snowmerak/snowmerak/blob/main/content/posts/001_error-handling.md) and [RFC 7807](https://github.com/snowmerak/snowmerak/blob/main/content/posts/029_rfc_7807.md) — stable machine-readable errors separated from diagnostic text.
 - [테스트 가능한 코드](https://github.com/snowmerak/snowmerak/blob/main/content/posts/016_testable_code.md) and [Liskov Substitution Principle](https://github.com/snowmerak/snowmerak/blob/main/content/posts/031_liskov_substitution_principle.md) — dependency inversion, cohesive roles, and behavioral substitution.
 - [Protobuf with Buf](https://github.com/snowmerak/snowmerak/blob/main/content/posts/025_protobuf_with_buf.md) — one IDL, automated generation, compatibility, and versioned distribution.
+- [AntiSerial](https://github.com/snowmerak/antiserial) — a static tagless format for simple high-performance objects with explicit append-only and buffer-lifetime trade-offs.
 - [Quantum Modular Architecture](https://github.com/snowmerak/snowmerak/blob/main/content/posts/048_qma.md) — separation of abstract contracts from concrete implementations and composition roots.
 - [Sidecar](https://github.com/snowmerak/snowmerak/blob/main/content/posts/050_sidecar.md) — process boundaries that add real cross-language or operational capability.
