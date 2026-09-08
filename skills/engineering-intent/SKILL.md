@@ -1,6 +1,6 @@
 ---
 name: engineering-intent
-description: Apply a durability-first, failure-aware decision framework when designing, planning, implementing, reviewing, or hardening software. Use for substantive work involving state, service or repository boundaries, retries, security, interfaces, contracts, cross-system architecture, observability, lifecycle, deployment, or completion evidence. Do not use for simple factual answers or purely cosmetic edits.
+description: Apply a durability-first, failure-aware decision framework when designing, planning, implementing, reviewing, testing, or hardening software. Use for substantive work involving state, service or repository boundaries, retries, security, interfaces, contracts, cross-system architecture, observability, lifecycle, deployment, QA strategy, or completion evidence. Do not use for simple factual answers, purely cosmetic edits, or merely running an already specified test command.
 ---
 
 # Engineering Intent
@@ -20,6 +20,7 @@ Read every reference whose condition applies to the task. Do not read unrelated 
 - Read [references/interfaces-and-contracts.md](references/interfaces-and-contracts.md) when designing or changing APIs, RPCs, events, schemas, storage abstractions, shared libraries, generated clients, error semantics, versioning, or compatibility.
 - Read [references/system-architecture.md](references/system-architecture.md) when relating multiple quanta or systems, selecting synchronous versus asynchronous interaction, evaluating dependency direction and failure propagation, or planning cross-system integration and whole-system validation.
 - Read [references/logging-and-observability.md](references/logging-and-observability.md) when designing, implementing, reviewing, or operating structured logs, traces, metrics, signal correlation, telemetry collection, observability storage, cardinality, sampling, or telemetry lifecycle.
+- Read [references/testing.md](references/testing.md) when implementing a feature or fix, planning or reviewing QA, writing or interpreting unit, integration, end-to-end, smoke, regression, compatibility, failure, concurrency, or performance tests, selecting test doubles or embedded dependencies, deciding whether benchmark code is warranted, or making completion and verification claims.
 - Read [references/technology-preferences.md](references/technology-preferences.md) when selecting or reviewing programming languages, runtimes, databases, caches, brokers, storage, transports, serialization, media tooling, browser SDKs, observability stacks, build tools, or deployment tooling. Treat its choices as evidence-backed defaults, not mandates.
 
 When multiple conditions apply, read the relevant references together and resolve overlap in favor of the narrower guidance. The latest explicit user decision remains authoritative.

@@ -10,6 +10,7 @@ The agent-facing source is organized as progressive Skill references. This page 
 - [Interfaces and contracts](../skills/engineering-intent/references/interfaces-and-contracts.md): ownership, semantic interfaces, errors, compatibility, versioning, and contract verification.
 - [System architecture](../skills/engineering-intent/references/system-architecture.md): cross-quantum relationships, dependency direction, failure propagation, integration, and whole-system validation.
 - [Logging and observability](../skills/engineering-intent/references/logging-and-observability.md): signal roles, contextual correlation, structured events, hot-path isolation, collection, storage, cardinality, retention, and observability verification.
+- [Testing and QA](../skills/engineering-intent/references/testing.md): unit, integration, end-to-end, and mandatory smoke evidence; embedded dependencies and narrow doubles; failure, lifecycle, fixtures, benchmarks, vertical delivery, and honest verification reporting.
 - [Technology preferences](../skills/engineering-intent/references/technology-preferences.md): evidence-backed language, data, messaging, storage, protocol, media, security, observability, build, and deployment defaults distilled from the Saturday Dinner Club repositories.
 
 The latest explicit user decision and the current system's documented invariants take precedence over these general references.

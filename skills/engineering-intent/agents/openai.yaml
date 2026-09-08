@@ -1,4 +1,4 @@
 interface:
   display_name: "Engineering Intent"
   short_description: "Apply durable, failure-aware engineering principles"
-  default_prompt: "Use $engineering-intent to guide this architecture or implementation task."
+  default_prompt: "Use $engineering-intent to guide this architecture, implementation, testing, or QA task."
