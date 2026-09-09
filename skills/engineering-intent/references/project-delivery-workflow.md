@@ -1,14 +1,14 @@
-# Documentation
+# Project Delivery Workflow
 
 Status: living document
 
-Last consolidated: 2026-09-08
+Last consolidated: 2026-09-09
 
 Audience: maintainers, reviewers, and coding agents
 
 ## 1. Purpose
 
-Documentation is a maintained interface to the current system and the reasoning that shaped it. A reader should not have to reconstruct essential behavior, boundaries, commands, or decisions from source code and commit history.
+This reference defines how project work is framed, executed, recorded, and kept reviewable from initiation through milestone completion and ongoing operation. Maintained documentation is the durable interface to the current system and the reasoning that shaped it. A reader should not have to reconstruct essential behavior, boundaries, commands, or decisions from source code and commit history.
 
 Good documentation enables its intended audience to:
 
@@ -27,10 +27,10 @@ When guidance conflicts, use this order:
 
 1. the user's latest explicit decision;
 2. the current system's documented invariants and authoritative specifications;
-3. this documentation guidance;
+3. this project-delivery guidance;
 4. formatting preference or documentation convenience.
 
-## 2. Organize documentation by lifecycle and audience
+## 2. Organize project knowledge by lifecycle and audience
 
 Use the smallest document topology that preserves the necessary truth.
 
