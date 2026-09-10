@@ -1,302 +1,101 @@
 # System Architecture
 
-Status: living document
+Status: living reference
 
-Last consolidated: 2026-09-07
+Use this reference to compose quanta and reason about cross-system workflows, consistency, scaling, regions, ownership movement, failure propagation, and umbrella evidence. [Quantum and monorepo](quantum-and-monorepo.md) owns boundary definition; General Engineering owns generic durability, capacity, and lifecycle principles.
 
-Audience: maintainers, reviewers, and coding agents
+## Compose without erasing ownership
 
-## 1. Purpose
+For each important fact and decision, one quantum owns mutation, authoritative representation, lifecycle, publication, compatibility, and recovery. Other quanta consume public contracts or explicit projections rather than private databases, caches, object layouts, or topic internals.
 
-Use this reference when composing multiple quanta, choosing synchronous or asynchronous interactions, assigning cross-system responsibility, or planning integration and failure tests.
+Shared gateways, messaging, identity primitives, observability, deployment, and connectivity are platform capabilities, not domain authorities. A gateway may route and apply cross-cutting policy; a broker transports messages; identity proves a subject; observability records evidence. The resource-owning quantum retains domain authorization and truth.
 
-The system architecture explains ownership, decisions, data flow, durability, dependency, and failure propagation. It is not merely an inventory of services and infrastructure products.
+Each shared platform still needs an owner, version policy, capacity model, failure boundary, and compatible local substitute. A platform outage may correlate failures across many quanta; that operational leverage does not justify moving their business invariants into the platform.
 
-## 2. Start with domain and data ownership
+Physical infrastructure can be shared while logical resources, policies, migrations, quotas, and recovery stay owned.
 
-Divide the backend by cohesive domain capability and owned data, not by a screen, endpoint, client request shape, programming language, or current team task list.
+## Give composition and workflows an owner
 
-For every important fact, identify one quantum that owns:
+Use an aggregator or backend-for-frontend when a consumer needs coordinated reads or presentation shaping across owners. It may parallelize calls, tolerate optional partial results, and cache a composed projection while keeping authority explicit. A screen or response shape does not create a new domain quantum.
 
-- its authoritative representation;
-- mutation and validation rules;
-- lifecycle and deletion;
-- publication to other quanta;
-- compatibility and migration;
-- operational recovery.
+A workflow coordinator may orchestrate commands across quanta. It owns workflow progress, durable coordination state, retries, timeouts, and compensations; participants still validate and own their domain transitions. Composition never grants access to private stores or creates an accidental distributed database.
 
-Other quanta consume contracts or projections. They do not read or mutate the owner's private database, cache keys, object layout, or internal topic schema.
+Make partial results contractual. A composed read may omit an optional source, return stale projection data, or fail the entire request depending on user impact. A multi-owner command may compensate, wait for reconciliation, or expose a pending state. Do not hide these choices behind a generic gateway success code.
 
-When a responsibility falls into a gray zone, assign an owner explicitly. Leaving it shared usually produces duplicated state, extra hops, ambiguous shutdown, and failure handling that no component owns end to end.
+## Choose the cross-quantum interaction class
 
-## 3. Compose quanta without erasing autonomy
+- **Synchronous request:** use when a current decision needs an authoritative answer and availability coupling is acceptable. Define deadline, cancellation, concurrency, failure mapping, and stale/degraded policy. Avoid cycles and unnecessary hot-path hops.
+- **Durable asynchronous work:** use when accepted work must survive receiver or network failure. Define durability, identity, idempotency, ordering, retries, poison handling, lag, and reconciliation.
+- **Disposable notification:** use for latency when disappearance is product-acceptable or repaired from durable authority. Loss may reduce immediacy, not corrupt truth.
+- **Local projection:** use when repeated authority calls create unacceptable latency or failure coupling. Define source, version/staleness, invalidation, rebuild, and fail-open/closed behavior.
+- **Scoped credential or assertion:** use when one authority can prove a decision once and a receiver can verify it locally within an explicit lifetime and revocation window.
+- **Direct data path:** use discovery/control to authorize and locate a bounded high-volume connection while keeping its throughput, backpressure, and lifecycle separate.
 
-Within one quantum, implementation may be strongly cohesive at build time while its independently deployed processes remain loosely coupled at runtime. Across quanta, even build-time sharing must preserve independent versioning and deployment.
+The chosen edge determines the effective failure quantum. Do not exchange a required authoritative decision for stale local data without naming the correctness cost.
 
-A quantum may expose:
+Avoid synchronous dependency cycles such as `A -> B -> C -> A`; they make startup, timeout budgeting, incident isolation, and rollback mutually dependent. Break a cycle by relocating the decision, publishing a durable fact, materializing a projection, or assigning workflow coordination explicitly. Do not add an asynchronous hop merely to appear decoupled when the caller still blocks on its completion.
 
-- a public or internal facade for commands and queries;
-- durable events representing owned facts;
-- disposable notifications for acceleration;
-- scoped credentials or discovery information for a direct data path.
+## Select consistency from consequences
 
-It should not expose internal persistence as its integration API.
+The default across independently operated quanta is durable local acceptance followed by eventual convergence of projections, indexes, replicas, and notifications. The owning quantum still protects local invariants with an appropriate transaction, uniqueness rule, compare-and-swap, or serialized transition.
 
-Physical infrastructure may be shared, but logical schemas, topics, buckets, namespaces, access policy, migrations, quotas, and recovery responsibility remain owned.
+Use strong coordination when conflicting acceptance, intermediate visibility, or stale authority would violate an important domain rule. First try to place the invariant under one authority. If it genuinely spans owners, define coordinator, lock/consensus scope, timeout, partial state, recovery, and partition availability.
 
-## 4. Separate platform and business responsibility
+Eventual consistency is valid only when divergence is bounded, observable, and repairable. Common mechanisms include outbox or CDC from authority, sagas, rebuildable read models, expected versions, epochs and fencing, monotonic offsets/versions, domain merge rules, and periodic reconciliation.
 
-Shared gateways, messaging, identity primitives, observability, deployment systems, or service connectivity may form platform capabilities. Business quanta use those capabilities without transferring their domain authority to the platform.
+For each asynchronous stage, record what has been durably accepted, how duplicate processing is recognized, which order is meaningful, where poison work waits, and how an operator sees lag and terminal failure. A retrying pipeline without a discoverable partial state is not recoverable merely because a broker retains messages.
 
-- A gateway routes, authenticates according to its contract, and applies cross-cutting policy; it should not accumulate arbitrary domain aggregation.
-- A broker transports messages; it does not become the owner of their meaning.
-- An identity service establishes identity; the resource owner retains domain authorization.
-- An observability platform records evidence; it does not define business truth.
+Wall-clock order alone does not solve concurrent conflicts. Do not make every projection strict for one special action or hold a local transaction across a remote call without explicit failure justification.
 
-A shared platform itself needs an owner, version policy, capacity model, failure boundary, and a way for business quanta to develop against compatible substitutes.
+## Design region and failure-domain behavior
 
-## 5. Give composition its own layer
+Distinguish region, zone, data center, cluster, node, and process failures. For multi-region state define allowed placement; read and write regions; active-active, home, or partitioned authority; local versus cross-region paths; replication and lag; partition behavior; failover ownership and fencing; conflict/merge rules; failback and reconciliation; and regulatory, privacy, and key placement.
 
-Client request shapes often span several domain owners. Use an aggregator or backend-for-frontend when one consumer needs coordinated reads or presentation-specific composition.
+Avoid universal home-region rules when independent writes merge safely. Do not claim active-active without deterministic domain conflict handling. Keep globally strict operations narrow because their latency and failure domain are wider.
 
-The composition layer may:
+Define partition and healing behavior independently from ordinary replication. During isolation, a capability may reject authority changes, accept only its owned shard, serve a bounded-stale projection, or continue mergeable writes. After healing, specify stale-owner fencing, replay order, conflict inspection, convergence evidence, and when traffic may fail back.
 
-- call relevant domain facades;
-- schedule and parallelize reads;
-- shape a client-specific response;
-- tolerate optional partial data according to contract;
-- cache a composed projection when ownership remains clear.
+## Scale and partition together
 
-It should not quietly become the source of truth or move domain writes into the frontend-shaped layer. A new screen is not evidence that a new domain quantum is needed.
+Name the unit that scales and the actual bottleneck. Replicas do not increase capacity if a row, partition, connection, device, or downstream service serializes all work.
 
-A composition layer or workflow coordinator MAY orchestrate commands across several quanta. It owns the workflow's progress, retry, timeout, and compensation state; each participating quantum still owns its domain facts and validates its own transition. Composition does not create authority to bypass domain facades or combine private stores into an accidental distributed database.
+Define routing/affinity keys, ordering scope, ownership movement, hot-entity isolation, competing-consumer versus fan-out semantics, amplification and per-destination buffering, admission and backlog policy, scaling signals, and repartitioning migration. A consumer group normally assigns each item to one member; it does not broadcast to every destination.
 
-## 6. Choose the interaction class deliberately
+Ownership movement needs make-before-break where continuity matters and epochs, leases, or fencing where old and new owners could both act. Separate refusal of new work from drain of accepted work.
 
-### Synchronous request
+Hot keys and fan-out deserve explicit treatment. Detect per-tenant, room, stream, or account pressure rather than relying only on aggregate CPU. Bound per-recipient buffers, decide whether a slow destination drops, disconnects, or backpressures, and account for one input expanding into many network writes or storage operations.
 
-Use when the caller needs an immediate answer from the authority before proceeding. Define timeout, cancellation, bounded concurrency, failure mapping, and whether stale or degraded data is acceptable.
+## Make discovery and lifecycle system contracts
 
-Synchronous dependencies contribute to the caller's runtime failure quantum. Avoid cycles such as `A -> B -> C -> A`, and avoid placing a synchronous hop on a hot path merely to fetch data that could be verified or projected locally.
+Advertisements should expose orthogonal facts: lease identity/freshness, readiness/admission, drain and in-flight ownership, protocol capabilities, and placement capacity. Define freshness and consumer behavior on delay.
 
-### Durable asynchronous work
+A crashed instance cannot reliably announce failure. Use observer-owned probes, lease expiry, failed connectivity, or fenced epochs to remove stale candidates. Graceful shutdown reduces interruption; durable recovery must handle disappearance without notice.
 
-Use when accepted work must survive process failure or be replayed. The path needs a durability boundary, stable identity, idempotent consumers, ordering scope, retry policy, poison-item handling, lag visibility, and reconciliation.
+Readiness should describe intended admission, not process existence. A lease proves recent ownership advertisement, not necessarily capacity; a health probe proves a response, not domain authority. Keep liveness, readiness, draining, ownership freshness, capabilities, and load as distinguishable facts so schedulers and peers can make the right decision.
 
-### Disposable notification
+## Preserve dependency direction
 
-Use when low latency matters more than guaranteed delivery.
+Domain policy depends on abstract capabilities; controllers translate boundary requests; adapters implement those capabilities; composition roots select implementations; aggregators use facades; consumers use published schemas. Folder names may vary, but vendors do not define domain policy and cross-quantum code does not reach behind ownership.
 
-- A state-significant notification accelerates awareness of a durable fact. If it may be lost, consumers need a way to detect stale state and recover from the authority or durable log.
-- A purely ephemeral notification MAY disappear without repair when the product contract accepts that loss.
+Libraries shared within a quantum may contain cohesive business behavior. Cross-quantum libraries should contain stable technical contracts or primitives rather than policy that forces synchronized releases. A sidecar or shared runtime needs real leverage—protocol reuse, batching, cache, isolation, or specialized computation—to justify its lifecycle, version, readiness, resource, restart, and observability costs.
 
-Failure of a disposable path should degrade immediacy or an explicitly optional experience, not corrupt truth.
+## Verify at the umbrella boundary
 
-### Discovery and direct data paths
+Each quantum uses contract-compatible substitutes for ordinary development. A separate umbrella topology validates claims that exist only between real components:
 
-A message bus or registry may signal availability, assignment, or connection details, after which peers establish a bounded direct connection for high-volume data. Keep control-plane ownership separate from data-plane throughput and lifecycle.
+- mixed versions, rollout, rollback, and generated contracts;
+- identity proof and domain authorization;
+- discovery, networking, durable propagation, and projection repair;
+- retries and containment during partial outage;
+- multi-replica assignment, movement, and fencing;
+- regional partition, failover, failback, and delayed convergence;
+- competing work versus required fan-out;
+- hotspots, backlog, overload, placement, and resource bounds;
+- graceful drain, abrupt loss, and externally visible workflows;
+- capacity and effective failure isolation.
 
-## 7. Separate truth, projection, and delivery
+Local fakes prove neither system interoperability nor availability. Conversely, ordinary feature work should not require the full production topology.
 
-A robust flow often has three distinct layers:
+End-to-end timestamps and identities must outlive a sampled trace when workflows are durable: request/trace IDs explain one execution, operation/event IDs explain retries and replay, entity IDs locate domain state, and occurrence/durability/publication/application times expose pipeline delay. Metrics aggregate failure and capacity without entity IDs as labels.
 
-1. an authoritative write or durable log;
-2. projections optimized for reading, routing, or local policy;
-3. fast delivery or notification optimized for latency.
-
-They need not share the same availability or consistency guarantees.
-
-- The durable layer allows restart and repair.
-- The projection layer allows local and scalable reads.
-- The fast path makes the common case responsive and may be lossy when recovery exists.
-
-Do not require the disposable path to become durable merely to avoid acknowledging its limitations. Do not pretend a projection is current without a version, timestamp, invalidation, or fallback policy.
-
-## 8. Select consistency from correctness needs
-
-Across independently operated quanta, the general default is durable local acceptance followed by eventual convergence of subsequent stages, replicas, projections, indexes, and notifications. Do not place a strong distributed transaction around every step merely to hide intermediate states.
-
-This default does not weaken the authoritative transition itself. The owning quantum SHOULD use a local transaction, compare-and-swap, unique constraint, serialized command path, or another appropriate mechanism to preserve its domain invariants at the declared durability boundary.
-
-Strong consistency is appropriate when accepting two conflicting states, observing an intermediate state, or acting on stale authority would immediately violate an important domain rule. The domain consequence, not a general preference for strictness, determines whether the latency and availability cost of coordination is justified.
-
-Prefer placing a strict invariant under one authority before introducing a cross-quantum transaction. If the invariant genuinely spans owners, document the coordinator, lock or consensus scope, timeout, partial-failure state, recovery process, and reduced availability during partition.
-
-Eventual consistency is appropriate when temporary divergence is acceptable, observable, and repairable. Each stage should be independently repeatable and expose enough identity and progress for reconciliation.
-
-Useful mechanisms include:
-
-- transactional outbox or change capture from an authoritative write;
-- command orchestration or a saga for multi-owner workflows;
-- read projections built from durable facts;
-- expected versions and compare-and-swap transitions;
-- epochs or fencing tokens for ownership changes;
-- monotonic versions, offsets, timestamps, or domain merge rules for delayed events;
-- periodic reconciliation against authoritative state.
-
-Wall-clock timestamps can support natural merge and presentation, but they do not alone prevent clock skew, duplicates, or conflicting concurrent writes. Define the tie-break and consequence of reordering where it matters.
-
-Do not make every projection globally strict because one special action needs coordination. Isolate strict transitions and let the rest converge at the weakest consistency that meets product behavior.
-
-Do not hold a local database transaction or lock open across a remote call unless the domain and failure analysis explicitly require it. Prefer committing the owned fact, recording durable follow-up work, and converging later.
-
-## 9. Design multi-region and failure-domain behavior
-
-Regions, availability zones, data centers, clusters, nodes, and processes are distinct failure and latency domains. The architecture SHOULD state which failures it intends to survive and which capabilities degrade at each boundary.
-
-For state and authority distributed across regions, define:
-
-- which regions may store, read, and mutate each data class;
-- whether writes are active-active, assigned to a home region, or partitioned by entity;
-- when a request remains local and when it may cross a region;
-- replication direction, expected lag, and acceptable divergence;
-- behavior during network partition and when remote authority is unreachable;
-- failover ownership, epoch or fencing, and treatment of the previous owner;
-- conflict detection, merge policy, and the meaning of timestamps or versions;
-- failback and reconciliation after the partition heals;
-- regulatory, privacy, and key-placement constraints.
-
-Do not introduce a universal home-region rule when independent writes can merge safely. Do not claim active-active writes when conflicting operations lack a deterministic domain policy. Strongly consistent global operations should remain narrow and explicit because their failure and latency domain is correspondingly wider.
-
-## 10. Design scaling and partitioning together
-
-Name the unit that can scale independently and the resource that actually constrains it. Adding process replicas does not increase capacity when all work is serialized through one partition, database row, connection, hardware device, or downstream service.
-
-Define, where relevant:
-
-- partition, shard, routing, and affinity keys;
-- the scope in which ordering must be preserved;
-- how work moves when membership or ownership changes;
-- how hot entities, rooms, streams, accounts, or tenants are detected and isolated;
-- whether consumers compete for work or every interested destination must receive it;
-- fan-out amplification and per-recipient buffering;
-- admission, overload, quality reduction, and backlog behavior;
-- capacity signals used for placement or autoscaling;
-- the migration path when a partitioning choice no longer fits.
-
-A consumer group usually distributes messages among its members; it does not provide fan-out to every relevant process. Subscription and routing topology are part of the delivery contract, not merely broker configuration.
-
-## 11. Treat failure containment as a topology property
-
-For every edge between quanta, ask:
-
-- Does failure reject new work, interrupt existing work, return stale data, or remove an optional feature?
-- Does the caller have a compatible degraded mode?
-- Can retries amplify the outage?
-- Is there a bounded backlog and an overload policy?
-- Can restart replay or reconcile partial progress?
-- Can a stale owner still act after reassignment?
-- What operator evidence identifies the failing edge?
-
-An independent deployment unit whose normal operation synchronously requires every other quantum is independent only in packaging. Evaluate the effective failure quantum, not only repository and process boundaries.
-
-Prefer make-before-break replacement for live connections and ownership changes. Stop new admission separately from draining healthy work. Use epochs, leases, or fencing when an old and new actor could both finalize the same state.
-
-## 12. Make lifecycle ownership explicit
-
-Service discovery, assignment, readiness, draining, shutdown, crash recovery, and reassignment are architectural contracts.
-
-An instance advertisement SHOULD expose orthogonal facts rather than compressing them into one ambiguous health value:
-
-- lease identity and freshness, from which consumers derive liveness;
-- readiness and admission of new work;
-- draining state and relevant in-flight ownership;
-- protocol version and capabilities;
-- current load or remaining placement capacity when used for assignment.
-
-Advertisements and leases need a freshness rule and a consumer behavior when updates are delayed. Suppressing new assignments is different from terminating existing ones.
-
-Do not depend on a crashed instance advertising itself as unhealthy. Lease expiry, failed probes, fenced epochs, or another observer-owned mechanism must remove stale candidates.
-
-Graceful shutdown reduces avoidable interruption, but crash recovery cannot depend on it. Durable ownership and reconciliation must handle a process disappearing without notification.
-
-## 13. Control dependency direction
-
-Layer and service dependencies should follow data and decision ownership.
-
-- Domain policy depends on abstract capabilities, not concrete vendors.
-- Controllers translate external requests into domain operations.
-- Infrastructure adapters implement domain-facing contracts.
-- Composition roots select concrete implementations.
-- Aggregators depend on domain facades, not their private storage.
-- Consumers depend on published event schemas, not producer internals.
-
-The exact folder names and number of layers may vary. The invariant is that low-level implementation choices do not define high-level policy, and cross-quantum consumers do not reach behind a facade.
-
-## 14. Use sidecars and shared components for real leverage
-
-A sidecar, local proxy, or shared runtime can be useful for cross-language protocol reuse, batching, cache, cryptographic isolation, or specialized computation. It also creates another lifecycle and failure boundary.
-
-Require an explicit benefit over an ordinary library or service. Define local protocol compatibility, readiness, resource ownership, restart order, and observability. A pass-through proxy with no operational or semantic value is architecture debt.
-
-Within one quantum, libraries MAY share cohesive business behavior because they participate in the same ownership and release boundary. Libraries shared across quanta SHOULD contain stable technical contracts or primitives, not business policy that forces otherwise independent quanta into synchronized releases.
-
-## 15. Design system-wide observability
-
-Every cross-quantum flow needs identities that survive its actual lifetime:
-
-- request and trace identifiers for an execution;
-- operation and event identifiers for retries and replay;
-- domain entity identifiers;
-- occurrence, durability, publication, and application timestamps where latency matters;
-- owner epoch or version where authority can move.
-
-Traces explain sampled causality. Durable timestamps and identifiers explain replayed or delayed facts. Metrics expose aggregate capacity and failure without using high-cardinality entity labels.
-
-Readiness should mean the instance can accept its intended new work, not merely that its process is alive.
-
-## 16. Test at the correct boundary
-
-Each quantum SHOULD be developable and testable using contract-compatible substitutes for external quanta. Its local suite covers domain behavior, adapters, durable transitions, lifecycle, and exported contracts.
-
-An umbrella environment separately validates:
-
-- mixed-version compatibility;
-- identity and authorization flow;
-- network and discovery behavior;
-- durable event propagation and projection repair;
-- retries during partial outage;
-- multi-replica assignment and fencing;
-- region partition, failover, failback, and delayed reconciliation;
-- competing-consumer versus fan-out delivery behavior;
-- hotspot, backlog, overload, and placement behavior;
-- graceful shutdown and abrupt loss;
-- externally visible workflows;
-- capacity and failure isolation.
-
-Do not require every developer to run the complete production topology to test one quantum. Do not claim system-wide availability from local fakes alone.
-
-## 17. Draw decisions, not boxes
-
-Architecture diagrams SHOULD make at least one important relationship visible:
-
-- ownership and trust boundaries;
-- command, query, event, and bulk-data direction;
-- durability acknowledgments;
-- source of truth and projections;
-- normal and degraded paths;
-- assignment and lifecycle transitions;
-- region, cluster, node, and process failure boundaries;
-- scaling, partitioning, ordering, and fan-out scopes;
-- failure propagation and recovery.
-
-A diagram containing product logos and bidirectional arrows but no semantics is an inventory. Use separate views when one drawing cannot clearly express topology, sequence, ownership, and failure.
-
-## 18. Architecture review questions
-
-| Concern | Question |
-| --- | --- |
-| Domain | Which quantum owns each important decision and fact? |
-| Composition | Who combines data for each consumer without taking ownership? |
-| Dependency | Which synchronous edges widen the failure quantum? |
-| Durability | Where may accepted work survive process loss? |
-| Delivery | Which paths may lose data and how is loss repaired? |
-| Consistency | What divergence is acceptable, for how long, and with what merge rule? |
-| Region | Where may authority and data live, and what happens during partition and failover? |
-| Scale | What is the scaling and partitioning unit, and where can hotspots form? |
-| Fan-out | Is each item assigned to one worker or delivered to every required destination? |
-| Ownership | How are stale owners fenced after reassignment? |
-| Lifecycle | How do readiness, drain, shutdown, crash, and restart differ? |
-| Capacity | What bounds queues, retries, fan-out, and in-flight work? |
-| Evolution | Can adjacent versions coexist and roll back independently? |
-| Evidence | Which claims require umbrella, failure, load, or external-client tests? |
+Architecture-specific review questions are: Who owns each cross-quantum workflow and fact? Which synchronous edge widens failure? What divergence and recovery are acceptable? What is the partition and ownership-movement rule? Which region or node failure changes behavior? Which claim requires umbrella rather than local evidence?

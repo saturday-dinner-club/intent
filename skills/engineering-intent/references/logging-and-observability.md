@@ -1,263 +1,90 @@
 # Logging and Observability
 
-Status: living document
+Status: living reference
 
-Last consolidated: 2026-09-07
+Observability explains what the system did, why, where time went, and which capacity or dependency degraded. It is operational evidence, not business authority. This reference owns signal semantics and behavior; backend preferences live in [observability-and-build-preferences.md](observability-and-build-preferences.md).
 
-Audience: maintainers, reviewers, and coding agents
-
-## 1. Purpose
-
-Use this reference when designing, implementing, reviewing, or operating logs, traces, metrics, telemetry collection, correlation, retention, or observability backends.
-
-Observability exists to explain what the system did, why it did it, where time was spent, and which capacity or dependency became unhealthy. It is part of product behavior and operations, but it is not the source of business truth.
-
-The owning quantum's contracts remain authoritative. This reference defines reusable signal roles and operating defaults without requiring one backend or deployment topology.
-
-## 2. Keep signal roles distinct
-
-Use the smallest signal that answers the intended question.
+## Keep signal roles distinct
 
 | Signal | Primary question | Normal shape |
 | --- | --- | --- |
-| Log | What meaningful fact or diagnostic condition was observed? | Structured event with timestamp, level, stable name, result, and context |
-| Trace | Which causal path did one execution take, and where was time spent? | Spans connected by propagated context or links |
-| Metric | How much, how often, how full, or how slow is the system? | Bounded-cardinality counters, gauges, and histograms |
-| Audit record | Who performed a consequential action against which authority? | Durable, access-controlled record with actor, target, decision, and outcome |
-| Domain event | Which durable business fact already occurred? | Owned, versioned contract with stable identity and replay semantics |
+| Log | What meaningful fact or diagnostic condition was observed? | Structured event with stable name, result, and context |
+| Trace | Which causal path did one execution take and where was time spent? | Linked spans with propagated context |
+| Metric | How much, how often, how full, or how slow? | Bounded-cardinality counter, gauge, or histogram |
+| Audit record | Who performed a consequential action against which authority? | Durable controlled record of actor, target, decision, and outcome |
+| Domain event | Which durable owned fact occurred? | Versioned contract with identity and replay semantics |
 
-These signals may share a collector, broker, storage engine, or correlation identifiers. Shared infrastructure does not erase their semantic and durability differences.
+Shared collectors, storage, or identifiers do not erase these differences. Do not parse logs as domain events, use telemetry as command state, or make authoritative success depend on a log backend. Audit requires its own durability, access, tamper, and retention contract. When one fact produces several signals, name its authority and derive the rest.
 
-- Diagnostic logs MUST NOT become an accidental command or source of business state.
-- Domain events MUST NOT rely on parsing log message text.
-- Audit records require their own durability, retention, access, and tamper-resistance policy.
-- A log backend outage MUST NOT determine whether an authoritative transition succeeded.
-- When one structured fact is intentionally projected into several signals, name the authoritative record and derive the others explicitly.
+## Use span, state, trend, and context intentionally
 
-## 3. Use Span, State, Trend, and Context as a design lens
+- **Span:** trace a request, dependency call, job, or operation when causality and duration matter. Use stable operation names and bounded attributes. Avoid spans for every frame, packet, or loop iteration and duplicate start/finish logs.
+- **State:** log meaningful transitions with entity kind, previous/next state, reason, operation, and result where available. Snapshots belong at bounded checkpoints such as initialization or recovery, not full object dumps.
+- **Trend:** represent aggregate change with counters, gauges, and histograms. A periodic aggregate log is acceptable only with explicit window and loss semantics.
+- **Context:** use W3C trace context for executions, request IDs for client handles, operation/event IDs for durable retries and replay, and typed entity IDs for domain correlation.
 
-The four concepts are a review lens rather than a required application API.
+Trace context describes one execution; it cannot replace durable event identity, occurrence time, causality, or domain version. Expected cancellation, not-found, disconnect, cache miss, or graceful drain is not warning/error unless a contract is violated or required work is lost.
 
-### Span
+Cross-process latency often needs both traces and domain timestamps. A sampled trace shows causal work that survived sampling; occurrence, commit, publication, and application times allow delayed or replayed flows to be measured even when no complete trace exists. Link asynchronous work to its cause without pretending it remains one synchronous span lifetime.
 
-A Span represents the lifetime of a request, method, dependency call, job, or other operation whose causal path and duration matter.
+## Emit useful structured events
 
-- Prefer an OpenTelemetry span over paired start and finish log lines.
-- Name spans by stable operation or route template, not raw URL, user input, or entity ID.
-- Record result, error status, relevant bounded attributes, and important child work.
-- Do not create a span for every frame, packet, loop iteration, or similarly high-frequency item.
-- Emit a completion log only when the completion is independently useful to an operator; do not duplicate every span as two logs.
+Application logs should be one structured event per record, normally JSON at the process boundary. Include only fields that answer an operational question: timestamp, level, service/version/instance when useful, stable event name, operation/result, typed IDs, duration/size/count with units, safe error/reason code, and lifecycle or fallback mode.
 
-### State
+Prefer typed fields over formatted prose. Use standard OpenTelemetry resource and semantic attributes where they fit; domain fields remain locally owned. Machine-consumed event families need an owner and additive schema policy, with an explicit version when incompatible meanings must coexist.
 
-State records explain meaningful lifecycle and state transitions.
+Apply levels by consequence:
 
-- A transition SHOULD identify the entity kind, previous state, next state, reason code, operation identity, and result when those values exist.
-- A snapshot is appropriate at a bounded diagnostic checkpoint such as initialization, assignment, recovery, or finalization.
-- Do not dump an entire request, configuration, object graph, or payload merely because it is available.
-- A state log observes a transition; it does not replace the authoritative row, event, or state machine.
-- Expected lifecycle states such as cancellation, disconnect, cache miss, or graceful drain are not warnings unless they violate an invariant or lose required work.
+- `trace`: temporary deep diagnosis, normally disabled;
+- `debug`: ordinary successful calls and investigation detail;
+- `info`: process lifecycle and meaningful normal transitions;
+- `warn`: handled degradation, fallback, partial loss, or approaching capacity;
+- `error`: failure of a request, durable operation, finalization, or owned responsibility.
 
-### Trend
+An error value alone does not determine level. Fatal logging is not general error handling; the composition root owns bounded reporting and process exit for startup failure or unrecoverable invariants.
 
-Trend represents aggregate change over a window. It normally belongs in metrics rather than repeated logs.
+State transition records should use stable event and reason names even when their human message changes. Snapshot only the fields required to diagnose initialization, assignment, recovery, or finalization. Configuration logging should expose the effective non-secret mode and provenance, not dump environment maps or raw configuration objects.
 
-- Use counters for occurrences and completed outcomes.
-- Use gauges for current bounded state such as queue depth, active sessions, or remaining capacity.
-- Use histograms for latency, size, age, and wait distributions.
-- Derive percentiles from the telemetry backend rather than logging one record per observation.
-- A periodic aggregate log MAY be useful when metrics are unavailable, but its window, reset behavior, and loss semantics must be explicit.
+## Protect the hot path and isolate collection
 
-### Context
+Domain code should use a narrow facade instead of a vendor fluent API. Prefer structured stdout or another local bounded writer, collected outside the process, plus OpenTelemetry SDK export for traces and metrics.
 
-Context connects signals that describe the same execution or durable operation.
+Do not synchronously call remote backends from latency-sensitive request, media, or messaging paths. Buffers must be bounded and expose drops, blocks, or rejection. Decide which severity may drop or sample, whether a producer blocks briefly, and whether local fallback exists. One slow sink must not stall unrelated work. Aggregate or rate-limit high-frequency retries, packets, frames, heartbeats, and cache hits.
 
-- Propagate W3C Trace Context across supported process boundaries.
-- Carry the active context through in-process calls instead of replacing it with a background context.
-- Use trace and span IDs for one sampled execution.
-- Use request IDs when a client or gateway needs a stable request handle independent of sampling.
-- Use operation and event IDs for retries, durable work, and replay whose lifetime exceeds one trace.
-- Keep domain entity IDs as typed fields rather than embedding them in messages or span names.
+Collectors may enrich resource metadata, redact, sample repetition, and route signals, but not invent domain meaning. A durable broker is justified only by explicit loss, replay, burst, fan-out, or routing needs. Competing consumers are not fan-out. Collector or backend failure normally reduces visibility, not business correctness.
 
-Trace context is execution metadata. Do not persist it inside a durable event as a substitute for event identity, occurrence time, causality, or domain version.
+Collect stdout or a rotating file intentionally; collecting both creates duplicates unless an identity and deduplication rule exists. File offsets and collector queues are delivery state, not proof of permanent retention. If telemetry itself has a durability requirement—commonly audit—separate that contract from ordinary diagnostic export.
 
-## 4. Write structured events
+## Control cardinality, payload, and sensitive data
 
-Application logs SHOULD be one structured event per record, normally JSON at the process boundary.
+Metric dimensions should be enumerable, such as route template, method, status class, role, protocol, result, or bounded reason. Keep request, trace, user, session, stream, raw URL, IP, arbitrary error, and other unbounded identities out of labels; they may belong in controlled logs or traces.
 
-A useful event contains only fields that answer an operational question:
+Never emit passwords, tokens, cookies, authorization headers, private keys, OTPs, publish/DRM material, recovery codes, or sensitive content. Avoid full requests, headers, URLs, configuration, environment maps, and payloads by default. Bound event size, nesting, stack traces, collections, and child-process lines; mark truncation. Treat log access as sensitive-data access.
 
-- event timestamp;
-- severity level;
-- service name and, when useful, version and instance identity;
-- stable event name or stable human-readable message;
-- operation and result;
-- typed domain and correlation identities;
-- duration, size, count, or age with an unambiguous unit;
-- stable error or reason code and safe diagnostic text;
-- lifecycle phase, fallback mode, or retry disposition when material.
+Each quantum owns domain classification and redaction. A shared library can deny known-dangerous fields, not infer every secret.
 
-Prefer typed fields over formatted prose. Keep messages stable enough to search and aggregate; place IDs, counts, durations, and provider details in separate fields.
+When correlation needs a sensitive value, prefer a stable non-secret identifier or carefully scoped keyed digest rather than the original. Hashing does not automatically anonymize low-entropy or enumerable data. Record truncation and redaction as structured facts so missing detail is not mistaken for an empty source value.
 
-Use standard OpenTelemetry resource and semantic attributes where they fit. Domain-specific fields remain owned by the emitting quantum and need not become universal library fields.
+## Match storage and retention to questions
 
-Machine-consumed event families SHOULD have an owner and additive schema policy. Add an explicit schema version when consumers need to distinguish incompatible meanings. Do not reuse a field name for a new meaning or silently change its unit.
+Log storage is a query projection. Select by filters, aggregation, text search, volume, retention, latency, and operating cost rather than making the backend a domain contract. During migrations, dual-ingest deliberately and compare coverage, results, lag, cost, retention, and failure before moving dashboards and retiring the old path.
 
-## 5. Apply levels by operational consequence
+Schema, sort/partition keys, indexes, materialized views, and TTL should follow actual operator queries. Structured time-range aggregation and free-text relevance impose different storage costs. Do not preserve benchmark numbers as universal expectations; measure representative event shapes and queries in the intended topology.
 
-- `trace`: highly detailed temporary diagnosis, normally disabled.
-- `debug`: repeatable successful calls and ordinary lifecycle detail useful during investigation.
-- `info`: process lifecycle, meaningful normal transitions, assignment, recovery, and operator-relevant configuration mode.
-- `warn`: handled degradation, fallback, partial loss, approaching capacity, or a condition likely to require attention if repeated.
-- `error`: a request, durable operation, required finalization, or owned responsibility failed.
+Retention follows data class and investigation need. Separate debug, normal operations, security audit, and regulated data; define the starting timestamp and late-arrival behavior; account for queues, replicas, exports, archives, backups, dashboards, and indexes. Keep telemetry only for a concrete operational, security, legal, or analytical purpose.
 
-Do not raise a level merely because an error value exists. Cancellation by the caller, an expected not-found result, a rejected duplicate, and a configured fallback may be normal outcomes.
+## Preserve lifecycle visibility
 
-Fatal logging should not be a general error-handling mechanism. The composition root owns process exit after it has reported startup failure or an unrecoverable invariant and attempted bounded telemetry flush.
+A process should expose startup and non-secret mode, dependency/capability initialization, readiness and admission changes, degradation and recovery, drain and reassignment, bounded shutdown, and final flush results.
 
-## 6. Protect the hot path
+Stop admission and drain owned work before closing telemetry. Flush with a deadline, continue cleanup after exporter failure, and use only a safe local fallback after remote providers close. Crash-time flush is unreliable; recovery-critical evidence also belongs in durable domain state, events, or checkpoints.
 
-Logging and export must have explicit capacity and failure behavior.
+Shared observability code may own logger facades, trace/metric bootstrap, resource metadata, propagation, common adapters, bounded shutdown, and baseline redaction. Each quantum owns meaningful domain events and spans, metric units and dimensions, SLOs, dashboards, alerts, and evidence. The platform owner owns collectors, credentials, routing, storage capacity, and shared retention.
 
-- Domain code SHOULD write through a narrow logging facade rather than a vendor-specific fluent API.
-- The default application path SHOULD write structured records to stdout or another local bounded writer for collection outside the process.
-- A logger SHOULD NOT synchronously call a remote backend from a latency-sensitive request, media, or messaging path.
-- Asynchronous buffers MUST be bounded and expose dropped, blocked, or rejected telemetry.
-- Decide whether overload blocks briefly, drops low-severity events, samples repetition, or falls back to a local sink. Do not let an unbounded queue make the choice through memory exhaustion.
-- One slow sink SHOULD NOT silently stall every producer or unrelated sink.
-- High-frequency frame, packet, heartbeat, cache-hit, or retry-loop activity SHOULD be aggregated, sampled, or rate-limited.
-- Repeated real-time reconnect attempts may remain immediate, but their logs and metrics must be sampled or aggregated so recovery does not create its own outage.
+Instrumentation should follow an explicit signal gap. First trace the runtime path and identify the transition, edge, or capacity question that cannot currently be answered; then add the smallest signal that answers it. Broad instrumentation without a question often creates cost and cardinality while still missing the real failure boundary.
 
-Ordering is scoped. Preserve order where it changes interpretation, such as transitions for one operation, but do not impose a global ordering cost on independent events without an operational need.
+## Verify useful visibility
 
-## 7. Separate application emission from collection
+Test structured output, typed fields, levels and invalid configuration, cross-boundary correlation, redaction and size bounds, partial process output, overflow and sampling, sink isolation, exporter-disabled operation, collector outage, shutdown timeout, machine-consumed schema compatibility, metric units/cardinality, and representative burst behavior. Inspect deployed or local-runtime output: unit tests cannot prove collector parsing, timestamps, deduplication, routing, and backend queries.
 
-The preferred default separates local emission from remote export:
-
-```text
-application ── structured JSON stdout/file ──> collector ──> log backend
-            └─ OTel trace and metric SDK ─────> collector ──> telemetry backends
-```
-
-This boundary keeps collector or backend latency away from the application logger and allows deployment-specific routing without coupling domain code to a backend.
-
-- Collect stdout or a rotating file, not both, unless duplicate ingestion is intentionally deduplicated.
-- Treat a file offset or collector queue as delivery state, not proof of permanent retention.
-- Introduce a durable broker only when loss tolerance, replay, burst absorption, independent consumers, or regional routing justify its operational cost.
-- If several consumers need the same record, use actual fan-out semantics; a competing consumer group distributes work instead.
-- Collector processors may enrich resource metadata, redact fields, sample repetition, and route signals, but they must not invent domain meaning.
-- Exporter and collector failure SHOULD degrade visibility rather than business correctness. Any stronger telemetry durability requirement must be explicit.
-
-## 8. Choose storage for the query
-
-Log storage is a query projection. Select it from the dominant access patterns, volume, retention, and operating cost.
-
-### ClickHouse
-
-Prefer ClickHouse for high-volume structured logs dominated by time ranges, exact field filters, grouping, rate calculations, and aggregate analysis. Its schema, sort key, partitioning, materialized views, and TTL should follow real queries rather than a generic event dump.
-
-### OpenSearch
-
-Prefer OpenSearch when free-text discovery, BM25 relevance, fuzzy matching, language analysis, or search-oriented exploration is a primary requirement. Do not pay its indexing and memory cost merely to run exact filters and time aggregations.
-
-### Other backends
-
-Loki or another log backend may remain the better operational fit for a smaller deployment or an established platform. Backend choice is not a domain contract.
-
-Use dual ingestion during a material backend migration. Compare coverage, query results, ingest lag, retention, cost, and failure behavior before moving dashboards and alerts, then shorten or remove the old path deliberately. Do not preserve numeric benchmark claims as universal expectations; measure representative data and queries.
-
-## 9. Control cardinality, payload, and sensitive data
-
-High-cardinality identities are useful in logs and traces but usually unsafe as metric attributes.
-
-- Use metric attributes that operators can enumerate, such as route template, method, status class, role, protocol, codec, result, or bounded reason code.
-- Keep request, trace, operation, user, session, stream, object key, raw URL, IP address, and arbitrary error text out of metric labels.
-- Never log passwords, tokens, cookies, authorization headers, private keys, OTPs, publish keys, DRM material, or recovery codes.
-- Do not log complete request bodies, headers, URLs, configuration objects, environment maps, or content payloads by default.
-- Prefer a stable non-secret identifier or keyed digest when correlation is needed without retaining the original value.
-- Bound child-process lines, stack traces, nested fields, collections, and individual event size; record truncation explicitly.
-- Treat access to logs as access to the sensitive data they contain.
-
-Each quantum owns the classification and redaction of its domain fields. A shared library can provide safe constructors and deny known-dangerous fields, but it cannot infer every domain secret.
-
-## 10. Define retention and deletion honestly
-
-Retention follows data class and investigation need, not one platform-wide number.
-
-- Separate short-lived debug detail, ordinary operational logs, security audit, and legally constrained data.
-- Define the timestamp that starts retention and the behavior of late-arriving records.
-- Apply TTL, partition dropping, or lifecycle policy according to the backend's deletion and compaction model.
-- Account for replicas, queues, exports, archives, backups, dashboards, and derived indexes when making deletion claims.
-- Keep telemetry only as long as it has a concrete operational, security, legal, or analytical purpose.
-
-## 11. Preserve lifecycle visibility
-
-Observability setup and shutdown are owned resources.
-
-A normal process lifecycle SHOULD expose:
-
-1. startup attempt and effective non-secret operating mode;
-2. dependency and capability initialization results;
-3. readiness and admission changes;
-4. degradation, recovery, drain, and reassignment transitions;
-5. bounded shutdown and final flush results.
-
-Stop new work and drain owned work before shutting down telemetry providers. Flush metrics and traces with a bounded context, close local sinks, and continue cleanup even if one exporter fails. After remote providers are closed, use only a safe local fallback for final shutdown diagnostics.
-
-A crash cannot flush reliably. Required recovery evidence must also exist in durable domain state, checkpoints, or events rather than only in a final log line.
-
-## 12. Divide ownership
-
-A shared observability library MAY own:
-
-- the structured logger facade and typed fields;
-- trace and metric bootstrap;
-- resource construction and W3C propagation helpers;
-- reusable HTTP, RPC, and process-output adapters;
-- bounded provider shutdown and test helpers;
-- baseline field, level, and redaction rules.
-
-Each quantum owns:
-
-- domain event names and state transitions worth recording;
-- span boundaries and domain attributes;
-- metric names, units, buckets, and bounded dimensions;
-- dashboards, alerts, SLOs, and operational thresholds;
-- domain-specific redaction and retention;
-- the evidence that its critical paths are observable.
-
-The platform or deployment owner owns collectors, credentials, backend topology, storage capacity, routing, and shared retention infrastructure. A shared platform records evidence; it does not become the owner of domain truth.
-
-## 13. Verify useful visibility
-
-Logging tests SHOULD prove behavior rather than exact prose alone:
-
-- valid structured output and typed field preservation;
-- level filtering and invalid configuration handling;
-- trace, span, request, and operation correlation;
-- redaction and maximum event size;
-- partial child-process writes and line buffering;
-- bounded buffer overflow, sampling, and sink failure behavior;
-- exporter-disabled local operation;
-- collector or backend outage isolation;
-- shutdown timeout and cleanup after one provider fails;
-- schema compatibility for machine-consumed event families;
-- metric cardinality and unit review;
-- representative throughput, burst, and retention behavior.
-
-Inspect runtime output after implementation. A passing unit test does not prove that deployment collectors parse fields, preserve timestamps, correlate traces, avoid duplicates, or route data to the intended backend.
-
-## 14. Review questions
-
-| Concern | Question |
-| --- | --- |
-| Purpose | Which operator or engineering question does this signal answer? |
-| Semantics | Is it a log, trace, metric, audit record, or domain event? |
-| Authority | What durable state explains the truth if telemetry is missing? |
-| Context | Which execution, operation, event, and domain identities must correlate? |
-| Capacity | What bounds emission, buffering, event size, and exporter work? |
-| Failure | What happens to business traffic when collection or storage is unavailable? |
-| Privacy | Which fields are sensitive, who may query them, and when are they deleted? |
-| Query | Which filters, aggregations, or text searches drive backend design? |
-| Lifecycle | How are startup, readiness, degradation, drain, crash, and shutdown visible? |
-| Evidence | Which tests and runtime checks prove the telemetry is actually useful? |
+Observability-specific review questions are: Which operator question does each signal answer? Are signal types and authority distinct? Which identities correlate execution versus durable work? What bounds the hot path? What happens during exporter failure? Which sensitive fields and retention apply? Can lifecycle and recovery be observed in the actual runtime?

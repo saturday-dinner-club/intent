@@ -1,271 +1,138 @@
 # General Engineering
 
-Status: living document
-
-Last consolidated: 2026-09-07
+Status: living reference
 
 Audience: maintainers, reviewers, and coding agents
 
-## 1. Purpose
+## Purpose and precedence
 
-This reference records a reusable way of designing and delivering software. It deliberately avoids product architecture, repository layouts, service names, technology selections, ports, and current implementation status. Those belong to the system that owns them.
+This is the normative core for substantive engineering work. It owns the reusable principles; specialized references describe only their domain consequences.
 
-The intent is to preserve how decisions are made when requirements are incomplete, systems fail partially, and implementation evidence differs from operational evidence.
+Defaults never replace a deliberate local contract. Resolve conflicts in this order: the latest explicit user decision, the current system's contracts and documented invariants, this reference, then implementation convenience.
 
-The keywords **MUST**, **SHOULD**, and **MAY** describe defaults. They do not override explicit user direction or evidence from the system being changed.
+Preserve enough reasoning to revisit a material decision: observed problem, constraints, authority and invariants, alternatives, implementation or migration path, evidence obtained, and remaining uncertainty. Generated code is a proposed implementation within that context, not evidence by itself.
 
-When guidance conflicts, use this order:
+## Complete the smallest useful behavior
 
-1. the user's latest explicit decision;
-2. the current system's contracts and documented invariants;
-3. this general engineering guidance;
-4. implementation convenience.
+Prefer a coherent vertical slice over disconnected components. Completion means the requested externally meaningful behavior is connected through every applicable contract, state transition, runtime path, failure policy, signal, verification layer, runnable artifact, and owning document.
 
-### Preserve reproducible reasoning
+This is scope-sensitive. A narrow change need not create unrelated infrastructure or documents. State precisely what works, what evidence exists, and what remains external. Compilation is not implemented behavior; implementation is not production readiness.
 
-The reusable result of engineering work is not only the code that happened to work once. Preserve enough context to repeat and revise the decision:
+Specialized references define the evidence or artifact their domain contributes. They do not create independent, cumulative definitions of feature completion.
 
-- the observed problem and constraints;
-- the authority and invariants that shaped the solution;
-- the meaningful alternatives and trade-offs;
-- the implementation and migration path;
-- the tests and runtime evidence obtained;
-- the remaining uncertainty and externally owned validation.
+Treat the slice boundary as a decision, not a license to touch everything nearby. Include a contract, migration, artifact, or document when the requested behavior depends on it; otherwise leave the neighboring concern alone and record the limitation only if it affects the claim. A small internal refactor may need focused tests and no new deployment shape, while one new public endpoint may need routing, schema, authorization, OpenAPI, runtime smoke, and README changes because those are all parts of that behavior.
 
-This is especially important for AI-assisted work. Treat generated code as a proposed implementation inside the system's context, not as an unexplained successful roll of the dice. The human or agent continuing the work should be able to understand why the boundaries and mechanisms exist and reproduce the verification path.
+## Separate authority, durability, projection, and delivery
 
-## 2. Build complete behavior
+For a stateful path identify:
 
-Prefer the smallest useful vertical slice over a collection of disconnected components. A feature is complete when its externally meaningful behavior is connected through the relevant contract, state transition, runtime path, failure handling, observability, tests, deployment shape, and documentation.
+- the authority that may decide and mutate;
+- the source of truth and exact durability boundary;
+- rebuildable projections and caches;
+- disposable delivery or notification paths;
+- how missing or stale derived state is detected and repaired.
 
-This does not require doing every possible test or production integration in one change. It requires being precise about which behavior works, which evidence exists, and which validation remains external.
+An acknowledgment must name its milestone. Receiving bytes, validating a command, committing authority, publishing a durable event, completing a projection, and notifying a client are different facts.
 
-Do not describe code that merely compiles as an implemented system. Do not describe an implemented system as production-ready without the environment, compatibility, failure, and load evidence needed to support that claim.
+A fast path may lose data only when loss is deliberate, bounded, observable, and recoverable. Convenience does not turn a cache, notification, or client projection into authority. Important operations and events should carry stable identities; construct idempotency at the domain boundary instead of assuming transport-level exactly-once behavior.
 
-## 3. Separate truth from acceleration
+Durable delivery and disposable notification solve different problems. A durable log or authoritative row must survive the failures named by its contract and support replay or reconciliation. A notification may optimize latency and disappear, but it cannot be the only record of a state-significant fact unless the product explicitly accepts permanent loss. A projection improves reads but remains derived even when most traffic never reaches the authority.
 
-Every stateful path MUST identify:
+## Prefer recoverable atomicity
 
-- its durability boundary;
-- its source of truth;
-- any faster but disposable projection or delivery path;
-- how a reader detects missing or stale data;
-- how the system recovers.
-
-A fast path may be allowed to lose data when loss is expected, bounded, observable, and recoverable from a durable path. A cache, notification channel, in-memory index, or client projection should not silently become authoritative merely because it is convenient to read.
-
-An acknowledgment MUST name the milestone it represents. Receiving bytes, validating a command, durably appending an event, completing a projection, and making a replacement ready are different acknowledgments.
-
-Duplicate delivery is normal. Important commands and events SHOULD carry a stable identity so consumers can be idempotent. Exactly-once behavior should be constructed at the domain boundary where it is needed, not assumed from a transport.
-
-## 4. Prefer recoverable atomicity
-
-“Atomic feature” means the externally meaningful transition remains coherent across failure. It does not mean forcing unrelated systems into a global transaction.
-
-When one operation spans durable state and fast projections, prefer:
+Atomic behavior means the externally meaningful transition remains coherent across failure, not that unrelated systems share a global transaction. A common safe shape is:
 
 1. validate authority and preconditions;
-2. durably record the command or state transition;
-3. acknowledge the declared durability boundary;
-4. materialize caches, indexes, notifications, and other projections;
-5. retry projection with the same operation identity;
-6. reconcile delayed or partial progress after restart.
+2. durably record the owned transition;
+3. acknowledge the declared milestone;
+4. materialize projections and notifications;
+5. retry derived work with the same identity;
+6. reconcile partial progress after restart.
 
-Use an outbox, append-only command, compare-and-swap transition, epoch, lease, monotonic version, or another explicit recovery mechanism when it makes the state transition safer. Do not introduce such machinery when the failure has no meaningful consequence.
+Use transactions, outboxes, append-only commands, compare-and-swap, epochs, leases, fencing, or monotonic versions when the failure consequence justifies them. Partial progress must be discoverable and safely resumable or repeatable.
 
-Partial progress MUST be discoverable. Restart should resume or safely repeat the operation rather than guess whether it happened.
+## Isolate failure and bound resources
 
-## 5. Design for failure isolation
+Assume multiple processes, replicas, nodes, and partial dependency failures unless the product explicitly requires a singleton.
 
-Assume independently deployed processes, multiple replicas, separate nodes, and partial dependency failures unless the product explicitly requires a singleton.
+- Separate admission of new work from completion of accepted work.
+- Prefer make-before-break replacement for a healthy live path.
+- Fence stale owners when more than one actor could finalize the same state.
+- Let acceleration failures remove only the capability they own.
+- Make degraded modes explicit; they must not masquerade as normal capacity.
 
-- Local single-instance development does not establish a production singleton.
-- Admission of new work SHOULD be separable from completion of existing work.
-- A draining instance stops receiving new work while preserving healthy in-flight work.
-- Stale owners MUST be fenced when two actors could publish or finalize the same state.
-- Make-before-break is preferred when replacing a healthy path: establish and validate the replacement before retiring the current one.
-- Failure of an acceleration dependency SHOULD degrade only the capability for which it is authoritative.
+Every queue, payload, batch, wait, child process, goroutine or task, retry loop, and in-flight operation needs a bound or lifecycle owner. Backpressure is product behavior: choose rejection, reduced quality, shedding, producer pause, or bounded backlog before memory exhaustion chooses for you.
 
-Do not strengthen consistency reflexively. If loose convergence is acceptable and recovery is available, avoid paying the latency and availability cost of strict global coordination.
+Local single-instance success does not prove replica safety. For each dependency edge, decide whether its loss rejects new work, interrupts accepted work, returns stale data, or removes an optional capability. A system with separately packaged services but mandatory synchronous availability across all of them still has one effective failure boundary.
 
-## 6. Choose retry behavior by recovery objective
+## Match retries to the recovery objective
 
-There is no universal retry policy. Classify the operation before adding delay.
+- **Immediate real-time recovery:** latency-critical internal connections may retry without delay when backoff directly harms continuity. Attempts must perform real I/O or yield, time out, honor cancellation, stay concurrency-bounded, and aggregate repetitive signals.
+- **Bounded request retry:** synchronous work retries only appropriate transient failures, within attempt and elapsed-time budgets, normally with jittered backoff.
+- **Background reconciliation:** repair may continue until convergence, but each sweep is bounded, visible, cancellable, and normally backs off after repeated failure.
 
-### 6.1 Immediate real-time recovery
+Validation, authorization, schema, and configuration failures do not become transient through repetition. Unknown partial outcomes require reconciliation, not blind replay.
 
-Latency-critical internal connections MAY retry immediately without exponential or fixed-delay backoff when added delay directly worsens continuity.
+## Keep infrastructure behind semantic contracts
 
-Each connection or handshake attempt MUST still:
+Domain behavior should depend on narrow capabilities rather than vendor clients, transport topology, launch details, or hardware APIs. A useful boundary preserves the distinctions callers need, including not found, already exists, invalid input, precondition or version conflict, transient unavailability, and permanent failure.
 
-- perform real I/O or yield rather than busy-spin;
-- have a timeout;
-- honor cancellation and shutdown;
-- respect bounded per-peer concurrency and admission limits;
-- suppress, sample, or aggregate repetitive logs and metrics.
+Separate create from replace when overwrite can destroy data. Make deletion workflow-idempotent. Support local implementations and migration without inventing an abstraction that only renames one library.
 
-A prolonged outage MUST NOT silently turn this path into a slow backoff loop when rapid recovery remains the stated objective. Resource protection belongs in bounded attempts, timeouts, and concurrency rather than arbitrary recovery latency.
+## Treat observability as behavior
 
-### 6.2 Bounded request retry
+Critical transitions need enough structured logs, traces, bounded-cardinality metrics, readiness, and domain timestamps to locate delay, loss, rejection, stale state, and recovery. High-cardinality identities belong in logs or traces, not metric labels. Never emit credentials, signing material, or sensitive payloads.
 
-User-facing and synchronous operations SHOULD retry only transient failures, cap attempts and elapsed time, and use backoff with jitter when repeated attempts could amplify load.
+Expected cancellation, disconnect, cache miss, or graceful shutdown is not an error unless it violates a declared transition or loses required work. Telemetry should reveal behavior without becoming the source of business truth or a synchronous dependency of the hot path.
 
-### 6.3 Background reconciliation
+## Own lifecycle and recovery
 
-Background repair MAY continue until convergence. Each sweep remains bounded, exposes progress, and normally backs off between repeated failures so it does not starve foreground work.
+Every process that owns listeners, leases, assignments, buffered work, child processes, checkpoints, or finalization owns its full lifecycle. Normal shutdown should become unready, stop admission, release or drain bounded work, finalize safe durable state, stop children and loops, close dependencies and telemetry in order, and exit when the budget expires.
 
-Permanent validation, authorization, schema, or configuration failures are not made transient by retrying them.
+Graceful shutdown and crash recovery are distinct. Grace reduces avoidable recovery work; crash recovery cannot depend on it having occurred.
 
-## 7. Bound resource ownership
+Startup and readiness are also different. Process liveness says the runtime exists; readiness says it can accept its declared new work with required authority and capacity. Optional acceleration may produce an explicit degraded-ready mode, while an unavailable authoritative dependency may keep the process unready. Assign each resource exactly one cleanup owner and make partial startup failure unwind already acquired resources.
 
-Queues, payloads, batches, blocking waits, child processes, goroutines, retries, and in-flight work MUST have explicit bounds or lifecycle ownership.
+## Keep security controls distinct
 
-Backpressure is a product behavior. Decide whether overload should reject new work, reduce quality, shed optional work, pause a producer, or consume a bounded backlog. Do not allow an unbounded queue to make that decision accidentally through memory exhaustion.
+Network placement, transport security, authentication, authorization, confidentiality, abuse controls, and audit solve different problems. Any omitted control must be explicit and scoped.
 
-Degraded modes SHOULD be visible and deliberately less capable. They must not present themselves as normal capacity.
+Minimize credential scope, lifetime, and distribution. Keep raw credentials out of URLs, logs, events, and ordinary durable state. Separate identity proof from domain authorization. Opaque identifiers resist enumeration; they are not authorization or encryption. Make deletion claims honest about caches, replicas, backups, and provider lifecycles. Add cryptography or global coordination only for a concrete threat or correctness need.
 
-## 8. Keep infrastructure behind contracts
+## Build verification evidence by risk
 
-Domain behavior SHOULD depend on narrow interfaces rather than vendor clients, transport topology, process launch details, or hardware APIs.
+Use the cheapest evidence able to disprove the change, then move toward the boundary where the behavior matters: static checks; focused unit and contract tests; repository-wide tests; race, property, fuzz, or interruption tests; migrations and compatibility; artifact builds; readiness and runtime inspection; then real protocol, browser, hardware, provider, load, soak, or chaos evidence where applicable.
 
-An infrastructure boundary is not complete until its error semantics are defined. Callers need to distinguish, when relevant:
+Test failures immediately before and after durability boundaries when state is material. Golden representations protect compatibility but do not prove interoperability with real clients or environments.
 
-- not found;
-- already exists;
-- version or precondition conflict;
-- invalid input;
-- unavailable or transient failure;
-- permanent failure.
+Choose evidence by the claim: unit tests for owned logic, integration tests for real adapters and composition, end-to-end tests for user workflows, smoke for the assembled artifact, compatibility tests for version skew, and operational tests for the deployment environment. Failure, race, fuzz, load, soak, and chaos evidence is conditional on the risk rather than a ceremonial checklist.
 
-Create and replace operations SHOULD be distinct when accidental overwrite could destroy data. Deletion SHOULD be idempotent from the workflow's perspective even when the underlying provider exposes more states.
+Report implementation separately from evidence. Name checks that passed, failed, or skipped, the real or substituted dependencies exercised, and externally owned validation that remains.
 
-Interfaces should enable local implementations, deterministic tests, migration, and alternate providers. Avoid abstraction that merely renames a concrete library without protecting a domain boundary.
+## Work safely in an existing repository
 
-## 9. Treat observability as behavior
+Read local instructions, architecture, status, and relevant history. Inspect the worktree and preserve unrelated changes. Prefer scoped, reversible assumptions. Add compatibility and migration behavior before relying on durable schema changes. Rebuild or recreate affected local services when authorized and relevant.
 
-Logs, traces, metrics, readiness, and graceful lifecycle handling are part of the implementation.
+External publication, deployment, destructive data changes, and mutation of unrelated systems require task authority. Commit history should be cohesive and follow the user's requested conventions.
 
-Critical transitions SHOULD expose:
+Do not hide an unavailable check behind a substitute. An embedded implementation can prove internal behavior and a fake can prove caller policy, but neither proves the external provider, browser, device, network, or production topology. Mark skipped and externally owned evidence explicitly.
 
-- structured logs with operation, result, relevant domain identities, and error;
-- trace spans with causal context across process boundaries;
-- bounded-cardinality metrics for latency, throughput, queue depth, rejection, retry, and failure;
-- readiness that means the instance can accept its intended new work.
+## Decision frame
 
-High-cardinality identities belong in logs and traces, not metric labels. Credentials, secrets, signing material, and sensitive payloads MUST NOT be logged.
-
-Cross-process latency often needs both tracing and domain timestamps. Traces explain causality when sampled; timestamps allow end-to-end delay measurement even when no complete trace survives.
-
-Expected cancellation, disconnect, cache miss, or graceful shutdown is not an error unless it violates a declared state transition or loses required data.
-
-Before broad instrumentation, inspect the runtime paths and write down the missing signals. Then make a second pass to implement the selected signals. This avoids noisy instrumentation that still misses the actual failure boundary.
-
-## 10. Own the whole lifecycle
-
-Graceful shutdown applies to every process that owns listeners, leases, assignments, buffered work, child processes, durable checkpoints, or finalization—not only the last writer.
-
-A normal shutdown sequence SHOULD:
-
-1. become unready and stop new admission;
-2. notify or release owned assignments when the protocol supports it;
-3. drain bounded in-flight work;
-4. finalize durable state that is safe to finalize;
-5. stop child processes and background loops;
-6. close clients, telemetry providers, and listeners in an explicit order;
-7. exit when the drain budget expires rather than hang indefinitely.
-
-Shutdown and crash recovery are different paths and both require tests. Graceful shutdown should reduce unnecessary recovery work; crash recovery must not rely on graceful shutdown having occurred.
-
-## 11. Make security boundaries explicit
-
-Network placement, transport security, authentication, authorization, and data secrecy are separate controls. A trusted network may justify omitting one control, but the omission MUST be intentional and documented rather than inferred from convenience.
-
-- Minimize secret lifetime and distribution.
-- Keep raw credentials out of logs, events, URLs, and durable records unless storage is their explicit purpose.
-- Prefer one-time or narrowly scoped credentials for handoff between domains.
-- Separate identity proof from domain authorization.
-- Treat opaque identifiers as enumeration resistance, not authorization or encryption.
-- Make deletion semantics honest about replicas, caches, backups, and provider lifecycle behavior.
-
-Do not add speculative cryptography or global coordination without a threat or correctness requirement. Preserve extension boundaries when future change is likely, but implement the current security contract completely.
-
-## 12. Verify according to risk
-
-Use the cheapest evidence that can disprove the change, then climb toward the environment where the behavior matters:
-
-1. formatting and static checks;
-2. focused unit and contract tests;
-3. repository-wide tests;
-4. race, property, fuzz, or interruption tests for concurrent and stateful code;
-5. migration and backward-compatibility checks;
-6. container build and deployment configuration validation;
-7. readiness and runtime log inspection;
-8. protocol, browser, hardware, external-service, load, soak, packet-loss, or chaos testing where applicable.
-
-Golden compatibility tests freeze wire bytes, schemas, manifests, or reader behavior. They protect evolution but do not replace real external clients and environments.
-
-Tests SHOULD exercise duplicate execution and failure immediately before and after the durability boundary. A happy-path test alone is weak evidence for a distributed state transition.
-
-Report implementation and verification separately. State which checks passed, which were impossible in the current environment, and which remain subjective or operator-owned.
-
-## 13. Work safely in an existing repository
-
-- Read the repository's own instructions, architecture, status, and recent history before changing it.
-- Inspect the worktree and preserve unrelated user changes.
-- Prefer informed, reversible assumptions that stay within the requested scope.
-- Do not expand authority because a broader action would be convenient.
-- Update plans and TODO documents when discoveries materially change the work.
-- Add migrations and compatibility behavior before relying on durable schema changes.
-- Rebuild and recreate affected local services after implementation changes when a local deployment exists.
-- Keep resource-heavy unrelated systems stopped during focused local tests.
-- Commit cohesive increments according to the user's requested history and timestamp conventions.
-- Push, publish, deploy externally, delete data, or mutate unrelated systems only when the task authorizes it.
-
-## 14. Decision frame
-
-Before a substantive design or implementation, answer the questions that matter:
+Answer only the rows material to the task, in code or its owning documentation:
 
 | Concern | Question |
 | --- | --- |
 | Outcome | What externally observable behavior must work? |
-| Authority | Which system owns the decision and data? |
-| Durability | At what exact milestone may success be acknowledged? |
-| Recovery | What restores missing fast-path state or interrupted work? |
-| Idempotency | What stable identity makes repetition safe? |
-| Concurrency | What fences stale or competing owners? |
-| Retry | Is this immediate recovery, bounded request retry, or background reconciliation? |
-| Capacity | What is bounded, and what happens at the bound? |
-| Lifecycle | How do start, readiness, drain, shutdown, and crash differ? |
-| Observability | How will an operator locate delay, loss, rejection, or stale state? |
-| Evidence | Which claims can be tested here, and which remain external? |
+| Authority | Who owns the decision and authoritative data? |
+| Durability | At what milestone may success be acknowledged? |
+| Recovery | What repairs stale state or interrupted work? |
+| Identity | What makes retries, replay, or duplicate delivery safe? |
+| Concurrency | What prevents stale or competing ownership? |
+| Retry | Which recovery class applies? |
+| Capacity | What is bounded and what happens at the bound? |
+| Lifecycle | How do readiness, drain, shutdown, and crash differ? |
+| Observability | How will delay, loss, rejection, or degradation be found? |
+| Evidence | Which claims are verified here and which remain external? |
 
-Not every task needs a written answer to every row. Every material decision should have an answer somewhere in the implementation or its owning documentation.
-
-## 15. Common failure patterns to avoid
-
-- Treating a cache or notification path as durable by accident.
-- Calling transport receipt a durable acknowledgment.
-- Retrying every error with one shared backoff policy.
-- Adding backoff to a latency-critical recovery loop without measuring the continuity cost.
-- Assuming a local singleton proves multi-replica correctness.
-- Destroying the healthy path before its replacement is ready.
-- Growing an unbounded queue instead of choosing overload behavior.
-- Claiming exactly-once behavior without domain idempotency.
-- Hiding partial progress so restart cannot reconcile it.
-- Adding metrics with unbounded identity labels.
-- Treating graceful shutdown as crash recovery.
-- Encoding a product-specific workaround as a universal engineering rule.
-- Reporting production readiness from compilation or unit tests alone.
-
-## 16. Updating this intent
-
-Prefer a narrow amendment supported by repeated need or evidence. Do not add a universal rule for every isolated incident.
-
-An update SHOULD explain:
-
-- what decision changed;
-- why the previous trade-off no longer fits;
-- whether the change is a principle, a local product decision, or a temporary workaround;
-- what compatibility, migration, or operational consequence follows.
-
-This reference should remain opinionated enough to change decisions and general enough to apply without knowing which repository is open.
+Amend this core only for a repeated cross-cutting need. Keep product topology, vendors, versions, and temporary workarounds in their owning repositories or specialized references.

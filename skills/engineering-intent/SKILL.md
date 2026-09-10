@@ -1,36 +1,41 @@
 ---
 name: engineering-intent
-description: Apply a durability-first, failure-aware decision framework when designing, planning, implementing, reviewing, testing, documenting, or hardening software. Use for substantive work involving state, service or repository boundaries, retries, security, interfaces, contracts, cross-system architecture, observability, lifecycle, deployment, QA strategy, project blueprints, milestone specifications, or completion evidence. Do not use for simple factual answers, purely cosmetic edits, or merely running an already specified command.
+description: Apply a durability-first, failure-aware decision framework to substantive software design, implementation, review, testing, documentation, and hardening. Use when work affects state, boundaries, retries, security, interfaces, architecture, observability, lifecycle, deployment, QA, or delivery evidence. Do not use for simple factual answers, cosmetic edits, or merely running an already specified command.
 ---
-
 # Engineering Intent
 
-Use this skill to apply reusable engineering philosophy without replacing explicit user choices or the current system's documented invariants.
+Apply the references that materially affect the requested work. Preserve the latest explicit user decision and the repository's established contracts over these defaults.
 
-## Required reference
+## Required core
 
-Before substantive action, read [references/general-engineering.md](references/general-engineering.md) completely. It defines the shared decision framework for vertical delivery, durability, recoverable atomicity, failure isolation, retry classes, bounded ownership, infrastructure boundaries, observability, lifecycle, security basics, verification, and safe repository work.
+Before substantive action, read [references/general-engineering.md](references/general-engineering.md) completely. It owns the cross-cutting decision model: vertical delivery, authority and durability, recovery, retries, capacity, infrastructure boundaries, observability, lifecycle, baseline security, verification, and repository safety.
 
 ## Conditional references
 
-Read every reference whose condition applies to the task. Do not read unrelated references merely because they exist.
+Read each applicable reference completely; do not load adjacent concerns merely because they share vocabulary.
 
-- Read [references/quantum-and-monorepo.md](references/quantum-and-monorepo.md) when defining or reviewing a complete independently operable quantum, ownership and data boundaries, monorepo scope, deployable processes, logical infrastructure ownership, package placement, isolated development, release independence, or effective change and failure coupling.
-- Read [references/security.md](references/security.md) when the work involves trust boundaries, authentication, authorization, credentials, secrets, personal or sensitive data, cryptography, abuse controls, retention, or deletion.
-- Read [references/interfaces-and-contracts.md](references/interfaces-and-contracts.md) when designing or changing APIs, RPCs, events, schemas, storage abstractions, shared libraries, generated clients, error semantics, versioning, or compatibility.
-- Read [references/system-architecture.md](references/system-architecture.md) when relating multiple quanta or systems, selecting synchronous versus asynchronous interaction, evaluating dependency direction and failure propagation, or planning cross-system integration and whole-system validation.
-- Read [references/logging-and-observability.md](references/logging-and-observability.md) when designing, implementing, reviewing, or operating structured logs, traces, metrics, signal correlation, telemetry collection, observability storage, cardinality, sampling, or telemetry lifecycle.
-- Read [references/testing.md](references/testing.md) when implementing a feature or fix, planning or reviewing QA, writing or interpreting unit, integration, end-to-end, smoke, regression, compatibility, failure, concurrency, or performance tests, selecting test doubles or embedded dependencies, deciding whether benchmark code is warranted, or making completion and verification claims.
-- Read [references/project-delivery-workflow.md](references/project-delivery-workflow.md) when starting or advancing a project or milestone, defining or updating delivery artifacts such as a blueprint, work specification, README, architecture document or diagram, ADR, REST API or OpenAPI contract, configuration reference, runbook, migration or release guide, localized documentation, technical report, or implementation-status record, recording settled decisions, maintaining project knowledge, or verifying that documentation and implementation remain aligned.
-- Read [references/code_style_and_deployment.md](references/code_style_and_deployment.md) when writing, reviewing, or refactoring code, choosing function or method names and comments, defining a runnable artifact, creating or reviewing a Dockerfile, Docker Compose setup, Kubernetes manifest, or equivalent container-engine configuration, packaging or deploying a process locally, or verifying container build, runtime, readiness, shutdown, and smoke behavior.
-- Read [references/technology-preferences.md](references/technology-preferences.md) when selecting or reviewing programming languages, runtimes, databases, caches, brokers, storage, transports, serialization, media tooling, browser SDKs, observability stacks, build tools, or deployment tooling. Treat its choices as evidence-backed defaults, not mandates.
+- [Quantum and monorepo](references/quantum-and-monorepo.md): defining or changing a quantum, ownership boundary, repository scope, logical infrastructure ownership, internal deployables, or effective change/deployment/failure coupling.
+- [System architecture](references/system-architecture.md): composing multiple quanta, cross-system workflows, dependency classes, consistency, partitioning, failover, or umbrella validation.
+- [Interfaces and contracts](references/interfaces-and-contracts.md): APIs, REST/OpenAPI, RPCs, events, schemas, storage abstractions, generated clients, errors, versioning, serialization, or compatibility.
+- [Security](references/security.md): trust boundaries, authentication, authorization, credentials, secrets, sensitive data, cryptography, abuse controls, retention, or deletion.
+- [Logging and observability](references/logging-and-observability.md): signal semantics, instrumentation, correlation, telemetry collection, cardinality, sampling, retention, or lifecycle visibility.
+- [Testing and QA](references/testing.md): implementing a feature or fix, selecting evidence or test doubles, or reviewing unit, integration, end-to-end, smoke, failure, lifecycle, or compatibility tests.
+- [Performance and benchmarks](references/performance-and-benchmarks.md): performance is a requirement or risk, a meaningful workload can be measured, or the testing review determines that benchmark code is required.
+- [Code style](references/code-style.md): writing, reviewing, or refactoring code, especially names, comments, readability, and repository conventions.
+- [Runtime artifacts and local deployment](references/runtime-artifacts-and-local-deployment.md): runnable processes, Dockerfiles, container contracts, Compose, local Kubernetes, readiness, shutdown, cleanup, or artifact smoke verification.
+- [Project delivery workflow](references/project-delivery-workflow.md): starting or advancing a project or milestone, maintaining a blueprint, work specification, README, living design/status document, ADR, or documentation ownership and drift.
+- [Documentation artifacts](references/documentation-artifacts.md): architecture documents or Draw.io diagrams, Typst reports, executable examples, localization, runbooks, releases, or migrations.
+- [Technology preferences](references/technology-preferences.md): selecting languages, runtimes, or broadly reusable implementation defaults.
+- [Data and messaging preferences](references/data-and-messaging-preferences.md): selecting databases, caches, brokers, CDC, object storage, or search engines.
+- [Protocol and client preferences](references/protocol-and-client-preferences.md): selecting HTTP, proxies, Protobuf/gRPC, browser transports, SDKs, or frontend tooling.
+- [Media technology preferences](references/media-technology-preferences.md): Stream-family codec, packaging, FFmpeg, playback, or hardware-acceleration work.
+- [Identity and cryptography preferences](references/identity-and-cryptography-preferences.md): Accounts-family identity/credential design or choosing a new internal hash.
+- [Observability and build preferences](references/observability-and-build-preferences.md): selecting telemetry backends, shared logging facilities, site/build tools, or VM/container development defaults.
 
-When multiple conditions apply, read the relevant references together and resolve overlap in favor of the narrower guidance. The latest explicit user decision remains authoritative.
+## Application rules
 
-## Apply the guidance
+Use the core decision frame only for material decisions; do not repeat it under every specialized concern. Specialized references own domain consequences and evidence, not a second copy of the general doctrine.
 
-Use the references to identify the decisions that materially affect the requested work. Make safe, scoped assumptions when they do not alter product behavior. Surface an assumption when it changes durability, security, compatibility, availability, latency, cost, or user-visible behavior.
+Keep implementation claims separate from verification evidence. Surface assumptions that change durability, security, compatibility, availability, latency, cost, or user-visible behavior. Do not expand a focused task into unrelated architecture, deployment, documentation, or benchmark work.
 
-Keep implementation and verification claims separate. Do not expand a focused task into unrelated infrastructure work merely because a reference describes a broader ideal.
-
-If local contracts deliberately differ from these general defaults, preserve the local contract and note the divergence only when it matters to the request. Do not convert a product-specific choice or isolated failure into a universal rule.
+When local contracts deliberately differ, preserve them. Record a divergence only when it matters to the requested work.

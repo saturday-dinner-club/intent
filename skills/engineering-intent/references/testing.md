@@ -1,355 +1,125 @@
 # Testing and QA
 
-Status: living document
+Status: living reference
 
-Last consolidated: 2026-09-08
+Testing is executable quality assurance: unit tests establish feature behavior, integration tests establish connections and composition, and end-to-end tests establish the workflow through the user's interface. Test count, coverage percentage, and framework usage are not the objective.
 
-Audience: maintainers, reviewers, and coding agents
+## Use complementary QA layers
 
-## 1. Purpose
+| Layer | Primary question | Evidence it does not provide alone |
+| --- | --- | --- |
+| Unit | Does the feature's local logic and state behavior work? | Real adapter, process, or user-interface behavior |
+| Integration | Do components connect through real contracts and compose correctly? | The workflow as experienced by the user |
+| End-to-end | Does the running system work through the user's actual entry point? | Every internal branch, failure transition, or capacity limit |
 
-Testing is executable quality assurance for completed behavior. Its purpose is not to maximize test count, coverage percentage, or framework usage. Its purpose is to establish, with evidence at the right boundaries, that:
+A user-visible feature must have all applicable layers. If a layer is genuinely absent, state why; environment inconvenience does not make it inapplicable. Put each assertion at the narrowest boundary able to disprove the risk, then add higher-level evidence for wiring and user behavior.
 
-- the feature itself behaves correctly;
-- components connect and compose correctly;
-- the completed system works through the interface a user actually uses;
-- important failure and recovery paths remain safe;
-- performance remains measurable where a meaningful workload exists.
+Static analysis, race detection, fuzzing, property and compatibility tests, smoke tests, benchmarks, load tests, and subjective review complement these layers rather than silently replacing them.
 
-The keywords **MUST**, **SHOULD**, and **MAY** describe defaults. They do not override the user's latest explicit direction or the owning system's contracts.
+Map each risk once at its cheapest trustworthy layer. Unit tests own branch-rich domain behavior. Integration tests own parsing, adapter semantics, transactions, process relationships, and lifecycle across a boundary. End-to-end tests own discoverability, packaging, routing, configuration, and the result visible to a real consumer. Repeat an assertion across layers only when the higher layer proves a different connection or failure mode.
 
-When guidance conflicts, use this order:
+## Derive evidence from delivered behavior
 
-1. the user's latest explicit decision;
-2. the current system's documented behavior and invariants;
-3. this testing and QA guidance;
-4. testing convenience or framework convention.
+Identify the user outcome, domain rules and transitions, crossed boundaries, user entry point, material failures around state changes, and whether performance is meaningfully measurable. A useful test can disprove one of those claims.
 
-## 2. Use three complementary QA layers
+Avoid tests that merely execute lines, repeat the type checker, freeze incidental structure or generated prose, or verify a mock's script. For a defect, add a regression at the boundary where it should have been caught; when practical, demonstrate that the test detects the unfixed defect.
 
-Unit, integration, and end-to-end tests answer different questions. They are not prestige levels and one does not replace another.
+Choose assertions before choosing fixtures. State the observable postcondition, error identity, durable transition, emitted contract, or resource bound first; then use only the setup required to expose it. This keeps tests resilient to internal refactoring while preserving behavior that callers and operators rely on.
 
-| Layer | Question | Primary evidence | Does not establish by itself |
-| --- | --- | --- | --- |
-| Unit | Does the feature and its internal logic behave correctly? | Domain rules, transformations, state machines, validation, errors, and local failure handling | Real connection, adapter, process, or user-interface behavior |
-| Integration | Do real boundaries connect, and does composition logic work? | Adapters, storage, protocols, serialization, configuration, migrations, dependency errors, and component lifecycle | The workflow as experienced through the user's interface |
-| End-to-end | Does the running system work from the user's side? | A real browser, CLI, API, SDK, protocol client, or other user-facing entry point driving the connected workflow | Every internal branch, failure transition, or capacity limit |
+## Unit tests verify feature logic
 
-A completed user-visible feature MUST have evidence through all three applicable layers:
+Keep unit tests fast, deterministic, local, and diagnostic. Cover relevant success, rejection, boundary values, invariants, state transitions, stable errors, duplicates, cancellation, timeout decisions, recovery logic, and regressions. Assert contracts and state, not private helper order or scheduler accidents.
 
-- unit tests for its functional behavior;
-- integration tests for every new or changed connection and composition path;
-- end-to-end tests for the user-visible workflow.
+For Go, actively use the built-in `testing` package: table tests and subtests when clearer, `t.Helper`, `t.TempDir`, `t.Setenv`, cleanup hooks, `t.Parallel` only for truly independent state, and the race detector or built-in fuzzing for concurrent or parser-heavy code. Prefer direct assertions with useful failure messages; do not add assertion or mocking frameworks merely to shorten ordinary tests.
 
-Do not duplicate every assertion at every layer. Put each risk at the narrowest boundary that can actually expose it, then add higher-level evidence for the connections and user path that narrower tests cannot prove.
+Share helpers only for stable setup or assertions. A helper should mark itself with `t.Helper`, retain the case-specific failure location, and return ownership or cleanup clearly. Parallel subtests must not share environment variables, fixed ports, process-wide configuration, mutable fixtures, or database namespaces.
 
-If a layer is genuinely inapplicable because the feature has no such boundary, state that explicitly. Do not call a layer inapplicable merely because its environment is inconvenient.
+For other languages, use the simplest mature runner natural to the repository. Keep dependencies and assertions direct. Integration and end-to-end tools follow the real boundary, not the unit-test framework.
 
-Static analysis, race detection, fuzzing, property tests, compatibility tests, smoke tests, benchmarks, load tests, and manual visual or quality review complement these three layers. They do not silently substitute for them.
+## Prefer local real behavior over mocks
 
-## 3. Derive tests from the behavior being delivered
+Use the highest-fidelity bounded implementation practical for the claim, roughly in this order:
 
-Before implementation, identify:
+1. real in-process component;
+2. official or faithful embedded implementation;
+3. disposable resource such as a temporary filesystem, SQLite database, embedded broker, in-memory transport, or local protocol server;
+4. thin fake or stub at a narrow external boundary;
+5. strict interaction mock only when interaction order is the behavior.
 
-- the user-observable outcome;
-- the domain rules and state transitions that produce it;
-- the components and infrastructure boundaries it crosses;
-- the user-facing entry point;
-- the material failures before, during, and after state change;
-- any performance characteristic that can be measured meaningfully.
+Embedded implementations or a local server are appropriate when they preserve the semantics under test. A thin double is acceptable for internal logic, unavailable or expensive external systems, deterministic rare failures, hardware, or hosted models. Do not recreate the external product inside a mock or call a scripted response proof of interoperability.
 
-Use those facts to select QA evidence. A useful test should be able to disprove a meaningful claim. Avoid tests that merely execute lines, repeat type checks, freeze incidental implementation details, or verify a mock's script.
+When substitutability matters, run common conformance cases against local doubles and the real adapter when available. Record which evidence was real, embedded, or mocked.
 
-For a defect, add a regression test at the boundary where the defect should have been caught. When practical, demonstrate that the test observes the defect before relying on it as evidence for the fix.
+Keep doubles honest about guarantees, not only return types. Model stable errors, duplicate behavior, ordering, capacity, cancellation, and persistence only to the extent required by the local contract. If an embedded engine differs from production in locking, isolation, delivery, clock, or durability, keep provider-specific cases in an explicit integration suite and do not generalize the embedded result.
 
-## 4. Use unit tests to verify feature behavior
+## Integration tests verify connection and composition
 
-Unit tests are the primary evidence for feature logic. Keep them fast, deterministic, local, and focused enough that a failure identifies the violated behavior.
+Exercise material boundaries, including configuration and discovery; serialization; adapter error translation; storage transactions, constraints, migrations, and reopen; broker acknowledgment, ordering, redelivery, and topology; process startup, readiness, reconnection, shutdown, and cleanup; generated compatibility; retries, deadlines, cancellation, unknown outcomes; and composition order when contractual.
 
-Unit tests SHOULD cover, where relevant:
+Use isolated namespaces, ports, directories, identities, and disposable data. A test containing several constructed objects is not integration evidence unless it crosses the boundary being claimed.
 
-- representative success cases;
-- validation and rejection;
-- boundary values and empty input;
-- domain state transitions and invariants;
-- error classification and propagation;
-- duplicate or repeated execution;
-- cancellation and timeout decisions;
-- internal recovery logic whose external dependency is not under test;
-- the specific regression behind a defect.
+Integration setup is owned test code. Wait on readiness rather than fixed sleeps, allocate ports safely, terminate children on every path, and retain enough logs or state to diagnose failure. Reopen persistent resources where restart semantics matter. Test migration from the supported previous representation rather than only creating the latest empty schema.
 
-Assert stable behavior, returned errors, durable or domain state, and declared side effects. Avoid asserting private call order, helper structure, generated wording, incidental SQL, scheduler accidents, or framework internals unless one is deliberately part of the contract.
+### Optional external dependencies
 
-### Go
+If an integration requires a real external service, browser, OS capability, device, executable, or hosted model, safely detect deliberately supplied prerequisites. Run when present; when absent, **skip** with the missing prerequisite and unverified boundary. Bound time, concurrency, cost, and cleanup.
 
-Use Go's built-in `testing` package actively:
+Missing optional infrastructure is not a product failure. A skip is also not a pass. Never probe arbitrary networks, discover production credentials, or use destructive production resources merely to make the test run.
 
-- table-driven tests and subtests when they make cases clearer;
-- `t.Helper` for shared test diagnostics;
-- `t.TempDir`, `t.Setenv`, and cleanup hooks for isolated ownership;
-- `t.Parallel` only when state and resources are genuinely independent;
-- the race detector for shared mutable state and concurrent lifecycle code;
-- built-in fuzzing and benchmarks when they fit the risk.
+## End-to-end tests use the user's interface
 
-Prefer direct assertions with useful failure messages. Do not add a third-party assertion or mocking framework solely to make ordinary unit tests look shorter.
+Start and compose the system substantially as claimed, then drive a real browser, built CLI, public API or protocol client, exported library API, media control surface, device interface, or other supported entry point.
 
-### Other languages
+Verify discoverability and input, real routing and composition, user-visible result, critical durable or external side effects, actionable errors, and cleanup. A shallow DOM or status assertion does not prove perceptual quality, accessibility, media quality, or model quality; record visual, metric, or human review separately when required.
 
-Use the simplest mature test runner already natural to the language and repository. Keep assertions direct and dependencies small. Add plugins, matchers, or mocking frameworks only when they provide evidence that would otherwise be materially harder to express.
+An indispensable missing prerequisite follows the external-dependency skip rule and leaves that user path explicitly unverified.
 
-This framework preference primarily concerns unit tests. Integration and end-to-end tooling should be chosen by the real boundary and user interface being exercised, not by loyalty to a unit-test framework.
+End-to-end data and accounts should be synthetic and scoped. Avoid production tenants, shared buckets, mutable public fixtures, and credentials discovered from a developer machine. A test that creates external state must identify ownership, cost, timeout, and cleanup, including what remains after an interrupted run.
 
-## 5. Prefer real local behavior over mocks
+## Smoke every completed feature
 
-Mocking is not the default. Use the highest-fidelity implementation that remains local, bounded, and appropriate for the claim.
+After implementing each coherent feature, a smoke test through the closest real user-facing entry point is **mandatory** before completion is claimed. It is the smallest bounded run that:
 
-Prefer, in order when practical:
+1. builds or starts the actual artifact;
+2. performs one representative action through the real entry point;
+3. observes the user-visible result and critical side effect;
+4. checks fatal errors or critical runtime signals;
+5. stops and cleans up owned resources.
 
-1. the real component running in-process;
-2. an official or faithful embedded implementation;
-3. a real disposable resource such as a temporary filesystem, SQLite database, embedded broker, in-memory transport, or local protocol server;
-4. a thin fake or stub at a narrow external boundary;
-5. a strict interaction mock only when interaction order is itself meaningful behavior.
+For a CLI, run the built command; for a web app, complete the smallest real browser interaction; for a service, call its public interface; for a library, run a downstream-style consumer; for a worker, submit through supported ingress. Compilation, a unit test, or direct internal handler call is not smoke evidence.
 
-An embedded implementation is preferred when it preserves the semantics needed by the test without requiring the external deployment. A local HTTP server is preferred when request shape, headers, response handling, retry classification, or protocol behavior matters.
+Smoke verifies assembly, not exhaustive correctness. Keep one representative successful action fast and deterministic enough to run after each feature, while deeper error and edge cases remain at unit, integration, and end-to-end layers. When packaging changes, smoke the packaged artifact rather than only the development launcher.
 
-A thin fake, stub, or mock MAY be used when:
+Use embedded or local dependencies when they preserve the entry path. If an indispensable external prerequisite is absent, the smoke may be skipped with a precise reason, but must not be reported as passed. Automate repeated smoke paths without replacing the real entry point.
 
-- the test concerns internal logic rather than external connectivity;
-- an external system is unavailable, expensive, destructive, slow, or nondeterministic;
-- a rare response or failure must be produced deterministically;
-- hardware or a hosted model must be isolated from ordinary local tests.
+## Test failure, durability, and lifecycle where material
 
-Keep the double limited to the contract needed by the test. Do not build a second implementation of the external system inside the mock. Do not treat a scripted mock response or expected method sequence as evidence that the real integration works.
+Exercise transitions where interruption changes the outcome: before commit; after commit but before acknowledgment or projection; duplicate delivery; stale ownership; partial restart; missing optional work; authority-based repair; dependency loss in flight; graceful drain versus abrupt loss; capacity bounds; and cleanup after a failed shutdown step.
 
-Where substitutability matters, run the same conformance cases against the embedded or fake implementation and the real adapter when available. Record which evidence came from a substitute and which exercised the real boundary.
+Assert durable state, degraded behavior, retry disposition, bound, recovery, and operator-visible evidence—not merely that an error occurred. Prefer explicit clocks, barriers, channels, local servers, and bounded eventual assertions over arbitrary sleeps. Use race, repetition, property, fuzz, randomized scheduling, or interruption tests when examples are weak; retain seeds and minimized failures.
 
-## 6. Use integration tests for connectivity and composition
+Compatibility tests should exercise supported old/new reader-writer pairs, unknown fields, persisted migrations, and rollback windows. Security tests add replay, privilege, redaction, and malformed-cost cases. Visual, media, hardware, and model work may need perceptual or metric review against a recorded environment. Load, soak, packet-loss, and chaos tests apply when capacity or failure containment is part of the claim; keep them separate from fast local QA.
 
-Integration tests verify that components cooperate through their real contracts. Merely constructing several objects in one test does not make it an integration test.
+## Keep contracts, fixtures, and suites operable
 
-Exercise the material connection and composition behavior:
+Representative fixtures may include wire messages, migrations, documents, archives, media, localization, browser sizes, or old and new versions. Golden files are suitable when exact bytes, schemas, manifests, rendering, or reader behavior are contractual. Keep them reproducible, minimal, synthetic, connected to their authority, and separate from proof against real external consumers.
 
-- configuration and dependency discovery;
-- request, event, command, and response serialization;
-- adapter error identity and translation;
-- storage transactions, migrations, constraints, and reopen behavior;
-- broker acknowledgment, ordering, redelivery, and consumer topology;
-- process startup, readiness, reconnection, shutdown, and cleanup;
-- generated client or schema compatibility;
-- retries, cancellation, deadlines, and unknown outcomes;
-- composition order when that order is part of the system contract.
+Expose discoverable commands for applicable unit, local integration, external integration, end-to-end, smoke, and heavier suites. They need not all share a default command. Keep helpers small, ownership and cleanup visible, and parallelism, time, subprocesses, network, payload, and cost bounded.
 
-Use real local or embedded infrastructure when it can represent the required semantics. Use isolated databases, namespaces, ports, directories, identities, and cleanup so one run cannot contaminate another.
+Treat flakiness as lost evidence. Capture timing, seed, environment, pressure, and logs; repair hidden state and arbitrary waits. Retries may gather diagnostics but may not erase the first failure. Use coverage to find gaps, not as a universal completion percentage.
 
-### External dependency availability
+Organize commands so a contributor can tell exactly which layer ran. The fast default may include unit and embedded integration tests, while real providers, browsers, hardware, benchmarks, load, and soak use discoverable opt-in commands. CI composition may differ, but its output must preserve skips, prerequisites, timeouts, and the boundary represented by each suite.
 
-When an integration depends on a real external service, browser, operating system capability, hardware device, or hosted model:
+## Decide whether performance is measurable
 
-- detect its configured availability safely;
-- run the integration test when the required endpoint, credential, executable, device, or other prerequisite is present;
-- skip the test when the prerequisite is absent;
-- include the missing prerequisite and the unverified boundary in the skip reason;
-- bound connection attempts, execution time, concurrency, cost, and cleanup.
+For every implemented feature, decide whether it has a useful metric and stable representative workload. If yes, read [performance-and-benchmarks.md](performance-and-benchmarks.md) and include reproducible benchmark code in the same change. If not, do not manufacture a meaningless number.
 
-Absence of an optional external dependency is a skip, not a product failure. A skip is also not a pass: report the missing QA evidence honestly.
+## Report evidence honestly
 
-Do not probe arbitrary networks, discover production credentials, or use destructive production resources merely to decide whether a test can run. Availability means the environment has deliberately supplied or exposed the dependency to the test.
+Separate implementation from verification. Name the unit, integration, end-to-end, and smoke commands; dependencies exercised; passed, failed, and skipped checks; skip reasons and unverified boundaries; specialized evidence; and subjective or operator-owned QA remaining.
 
-## 7. Use end-to-end tests from the user's side
+`Tests pass` must name its scope. Production readiness additionally needs the environment, compatibility, failure, security, and capacity evidence appropriate to the system.
 
-End-to-end tests start at an interface the user actually uses and observe results the user can observe. The system should be started and composed in substantially the same way as the claimed workflow.
+Preserve enough output to reproduce failures without publishing secrets: command, relevant version, seed or workload, prerequisite state, and bounded logs. If a check is manual, record what was observed and its limits. If a test was not attempted because it was out of scope, distinguish that from an attempted skip caused by a missing prerequisite.
 
-Examples include:
-
-- driving a web feature through a real browser;
-- invoking the built CLI rather than calling its command handler directly;
-- sending requests through the public API or protocol client;
-- consuming a library through its exported API as a downstream program would;
-- submitting work through the product entry point and observing its externally visible result;
-- exercising media, hardware, or model behavior through the supported user-facing control path.
-
-An end-to-end test SHOULD verify:
-
-- the entry point is discoverable and accepts the intended input;
-- real routing, configuration, and composition reach the owning behavior;
-- the user-visible result is correct;
-- critical durable or externally visible side effects occur;
-- actionable errors appear at the same interface;
-- resources and child processes are cleaned up.
-
-Prefer automation for repeatable behavior. Rendering, media quality, model quality, accessibility, or other perceptual outcomes MAY also require visual, metric-based, or human review. Record that evidence separately rather than pretending a shallow DOM or status-code assertion proves subjective quality.
-
-When an indispensable external prerequisite is absent, skip with a precise reason and report the end-to-end path as unverified in that environment.
-
-## 8. Run a smoke test after every feature
-
-After implementing one coherent feature, a smoke test through the closest real user-facing entry point is **mandatory** before declaring that feature complete. Run it after the feature is connected, not only after a batch of unrelated changes.
-
-The smoke test is the smallest bounded execution that demonstrates the feature can start and perform its representative successful action:
-
-1. build or launch the actual artifact;
-2. enter through the real user-facing interface;
-3. perform one representative action;
-4. observe the user-visible result and any critical side effect;
-5. inspect fatal errors or critical runtime signals;
-6. stop the system and clean up owned resources.
-
-Examples:
-
-- for a CLI, run the built executable with a representative command;
-- for a web application, load it in a browser and complete the smallest real interaction;
-- for a service, start the service and call its public API or protocol;
-- for a library, compile and run a minimal downstream-style consumer against the exported API;
-- for a worker, submit work through its supported ingress and observe the external result.
-
-A unit test, successful compilation, or direct call into an internal handler is not a smoke test.
-
-Use an embedded or local dependency when it supports the real entry path. If an indispensable external prerequisite is not available, the smoke test MAY be skipped according to the external-dependency rule, but the attempt and reason MUST be reported and the missing smoke evidence MUST NOT be described as a pass.
-
-Automate a smoke path when it will be repeated or when manual setup could hide wiring mistakes. Keep it fast enough to run after each feature while preserving the real entry point.
-
-## 9. Test failure, durability, and lifecycle
-
-Happy-path evidence is insufficient for stateful, concurrent, or externally connected behavior. Test at the transitions where interruption changes the outcome.
-
-Where material, cover:
-
-- failure immediately before durable state change;
-- interruption after commit but before acknowledgment or projection;
-- duplicate commands, callbacks, or event delivery;
-- stale or competing owners;
-- restart with partial progress;
-- delayed, missing, or failed optional work;
-- recovery from the authoritative source;
-- dependency loss during in-flight work;
-- graceful drain versus abrupt termination;
-- resource exhaustion and declared backpressure;
-- cleanup when one shutdown step fails.
-
-Assert the intended durable state, degraded behavior, retry disposition, resource bound, recovery path, and operator-visible signal. Merely asserting that an error occurred does not demonstrate safe containment.
-
-Prefer explicit clocks, barriers, channels, local servers, and bounded eventual assertions over arbitrary sleeps. Some runtime behavior requires real scheduling or polling; bound it, preserve diagnostics, and do not confuse a generous timeout with a latency guarantee.
-
-Use race detection, repetition, randomized schedules, property tests, fuzzing, or interruption tests when concurrency and state space make example tests weak. Preserve seeds and minimized failures so the result is reproducible.
-
-## 10. Preserve representative contracts and fixtures
-
-Fixtures should represent the formats and boundaries the product actually supports:
-
-- wire messages and generated bindings;
-- database schemas and migrations;
-- documents, archives, images, audio, and video;
-- language, formatting, escaping, and placeholder cases;
-- browser sizes and platform capabilities;
-- old and new client or storage versions.
-
-Use golden files when exact bytes, schemas, manifests, rendering, or reader behavior are the contract. Keep generation and drift checks connected to the authoritative source.
-
-Fixtures must be minimal enough to maintain, broad enough to expose the claimed compatibility, reproducible, isolated, and free of production credentials or personal data. A golden fixture does not replace a real external parser, browser, client, or provider when interoperability is the claim.
-
-## 11. Write benchmark code when performance is meaningfully measurable
-
-For every feature, decide whether a useful performance metric and a stable, representative workload can be defined. When meaningful measurement is possible, reproducible benchmark code is **required** in the same change, even when no performance target was requested explicitly.
-
-Performance is meaningfully measurable when one or more of these apply:
-
-- the feature introduces or changes an algorithm, parser, serializer, query, index, cache, queue, codec, allocator-heavy path, or hot request path;
-- latency, throughput, allocation, startup time, model time, or resource use affects user or operator experience;
-- input size or concurrency can be varied deliberately;
-- a before-and-after comparison can guide an engineering decision;
-- a regression could be detected under a controlled local or test environment.
-
-Do not create a benchmark merely to produce a number when setup noise, uncontrolled networks, third-party rate limits, changing hosted models, or unrelated system load dominate the result. When measurement is not meaningful, state why instead of presenting misleading precision.
-
-Benchmark code SHOULD:
-
-- live in the repository and be runnable again;
-- generate or load representative, versioned input;
-- separate setup and warm-up from the measured region;
-- measure the metric tied to the feature's risk;
-- vary meaningful sizes or concurrency levels;
-- prevent the compiler or runtime from eliminating the work;
-- report errors as well as latency or throughput;
-- document the command, workload, and environment assumptions.
-
-For Go, prefer `testing.B`, named sub-benchmarks, `b.ReportAllocs`, and correct timer control. Use `go test -bench` and `-benchmem` as the discoverable entry point. For other languages, use the smallest maintained benchmark harness or a focused workload driver that produces repeatable results.
-
-Distinguish:
-
-- a microbenchmark of one component;
-- an integration benchmark of a real local boundary;
-- an end-to-end workload through the user interface;
-- a capacity, soak, or production-like test.
-
-Do not present one as evidence for another. Record code revision, dependency versions, hardware or topology, dataset shape, concurrency, warm-up, repetitions, error rate, and relevant latency distributions when a decision depends on the result.
-
-Avoid brittle pass/fail thresholds on noisy shared machines. A hard performance gate is appropriate only when the environment and variance are controlled and the threshold corresponds to a real requirement. Otherwise retain comparable raw output and evaluate statistically against a relevant baseline.
-
-Benchmarks that call paid, scarce, destructive, or externally rate-limited dependencies must be clearly separated, bounded, and activated only when the environment deliberately provides them.
-
-## 12. Keep the suite simple and operable
-
-The repository should expose discoverable commands for the applicable QA layers. A top-level task or script SHOULD compose the relevant module and language-specific commands without hiding which evidence ran.
-
-Prefer recognizable entry points for:
-
-- unit tests;
-- local and embedded integration tests;
-- real external integration tests that run or skip by availability;
-- end-to-end tests;
-- the mandatory feature smoke path;
-- benchmarks and heavier load or soak tests.
-
-They need not all run in one default command when prerequisites, cost, or duration differ. Document the commands and make the fast local path easy to execute.
-
-Keep helpers focused on shared semantics. Avoid a custom test framework that obscures ordinary assertions, process ownership, external prerequisites, or cleanup. Bound parallelism, time, subprocesses, network calls, payloads, and external cost.
-
-Treat flakiness as lost evidence. Capture timing, seed, environment, resource pressure, and logs; fix undeclared dependencies, shared state, arbitrary sleeps, and cleanup failures. Retries may gather diagnostics but must not erase the original failure.
-
-Coverage is a discovery tool, not a universal completion percentage. Prefer evidence for important branches, invariants, contracts, failure classes, and recovery transitions over maximizing a repository-wide number.
-
-## 13. Complete the vertical slice
-
-Tests and documentation are part of the feature, not deferred cleanup. A cohesive feature change SHOULD include:
-
-- the implementation and connected runtime path;
-- unit coverage for functional behavior;
-- integration coverage for changed connections and composition;
-- end-to-end coverage for the affected user interface;
-- a smoke execution after the feature is assembled;
-- benchmark code when meaningful measurement is possible;
-- updated user, contract, operational, migration, and implementation-status documentation where behavior changed.
-
-Do not describe code that merely compiles or passes unit tests as a QA-complete feature. If an applicable integration, end-to-end, smoke, benchmark, hardware, provider, or subjective check could not run, preserve the implementation but report the remaining validation accurately.
-
-## 14. Report evidence honestly
-
-Separate:
-
-- what behavior was implemented or changed;
-- which unit, integration, end-to-end, and smoke commands ran;
-- which real, embedded, or mocked dependencies they exercised;
-- which checks passed, failed, or skipped;
-- every skip reason and the boundary left unverified;
-- benchmark commands, workload, environment, and result when measured;
-- subjective or operator-owned QA that remains.
-
-`Tests pass` should name the relevant commands or suites. A skipped external integration or smoke test is useful information, not successful evidence. Production readiness requires environment, compatibility, failure, security, and capacity evidence appropriate to the system.
-
-## 15. Review questions
-
-| Concern | Question |
-| --- | --- |
-| Feature | Which unit tests establish that the feature's logic works? |
-| Connection | Which integration tests exercise the real composition and adapter boundaries? |
-| User | Which end-to-end path uses the same interface as the user? |
-| Smoke | Was the completed feature run once through its actual entry point? |
-| Doubles | Could an embedded or disposable real implementation replace this mock? |
-| External | Did available dependencies run, and do absent ones produce an explicit skip? |
-| State | Are duplicate, interrupted, reopened, and recovered transitions covered where material? |
-| Lifecycle | Are startup, readiness, cancellation, drain, shutdown, and cleanup bounded? |
-| Contracts | Do fixtures and golden data represent real formats and supported versions? |
-| Performance | Can this feature be measured meaningfully, and if so, is benchmark code included? |
-| Vertical slice | Did implementation, tests, runtime wiring, and affected documentation change together? |
-| Evidence | What passed, what skipped, and what remains unverified? |
+Testing-specific review questions are: Which unit tests prove the feature logic? Which integration tests cross the changed connection or composition boundary? Which end-to-end path uses the user's interface? Was the mandatory smoke run? Did available real dependencies run while absent ones skip explicitly? Are doubles narrower than the claim? What remains unverified?
