@@ -23,11 +23,11 @@ Follow established paths. Otherwise use simple locations such as `docs/blueprint
 
 For each maintained artifact, make its audience, authority, status, and change trigger apparent. A document may describe current truth, an active proposal, an execution record, or historical reasoning; ambiguity between those states creates drift. Links should lead from broad entry points to the narrow owner rather than copying the same explanation upward.
 
-## Start substantive projects with a blueprint
+## Use a blueprint when a shared project map helps
 
-Every substantive project must begin with a blueprint. Before a major expansion of an existing project without one, reconstruct the smallest accurate blueprint.
+A blueprint is useful for a long-running, multi-milestone project when several contributors need a shared current map. A prototype, short MVP, focused change, or repository with an adequate existing overview does not need a separate blueprint. Before creating one, prefer improving the current README or design note when that has the same audience and lifecycle.
 
-Include the concerns that shape delivery:
+When a blueprint is justified, include only the concerns that shape the current delivery horizon:
 
 - purpose, users, desired outcomes, context, goals, non-goals, and scope;
 - representative user journeys and functional capabilities;
@@ -43,11 +43,11 @@ Do not invent providers, ports, schemas, or topology to fill a template. Mark st
 
 A blueprint is intentionally broader than one milestone but shall not become an aspirational handbook. Distinguish committed scope from possible later work, and link changing implementation details to their owning specifications. Update it when the project purpose, quantum boundaries, quality goals, milestone map, or principal risks change—not for every local refactor.
 
-## Specify every milestone
+## Specify milestones that need coordination
 
-Before implementation, create or update a work specification for each coherent milestone outcome. It should make the work executable and reviewable without dictating incidental implementation details.
+Create or update a work specification when a milestone is large, risky, long-running, or shared enough that the user prompt, issue, and existing documentation do not make it executable. Ordinary changes and exploratory slices may proceed from a short working plan without adding a maintained specification.
 
-Record:
+Select the useful items rather than filling every field:
 
 - objective and user or operator outcome;
 - starting state and available evidence;
@@ -56,7 +56,7 @@ Record:
 - affected contracts, data, components, and user entry points;
 - coherent tasks or vertical slices and their dependencies;
 - migration, compatibility, rollout, rollback, cleanup, failure, recovery, lifecycle, security, and observability where material;
-- observable acceptance criteria and planned unit, integration, end-to-end, mandatory smoke, and conditional benchmark evidence;
+- observable acceptance criteria and the smallest verification that supports the current claim;
 - expected README, architecture, interface, operational, release, localization, diagram, and report updates;
 - risks, assumptions, open questions, status, deviations, and remaining work.
 
@@ -66,7 +66,7 @@ Do not mark a milestone complete from task checkboxes alone. Its acceptance reco
 
 ## Keep the README current
 
-Every usable project needs a README from which a new reader can understand and begin using the current project. Cover applicable current capabilities, audience, prerequisites, installation, build, configuration, execution, smallest successful workflow, entry points, state and security considerations, fallbacks, limits, unsupported cases, QA commands, and links to deeper documents.
+A project intended for other users or contributors should have a README that gets them to the current usable path. For an early MVP, purpose, prerequisites, and the smallest successful workflow may be enough. Add capabilities, configuration, state and security considerations, fallbacks, limits, QA commands, and deeper links as they become relevant rather than filling a complete template at initialization.
 
 Lead with current usable behavior. Keep commands copyable, placeholders obvious, and expected results visible. Link to authoritative detail instead of duplicating it.
 
@@ -98,7 +98,7 @@ Research and provider comparisons should separate official capability, observed 
 
 ## Prevent drift
 
-When behavior changes, search its README and localized variants, blueprint, active milestone, architecture and diagrams, ADR links, contracts and generated references, examples and sample configuration, QA commands and reports, releases, migrations, runbooks, and known limitations. Update or remove stale claims in the same vertical slice.
+When behavior changes, identify the likely owning documents and derivatives, then update or remove stale claims in the same vertical slice. Do not scan or create every artifact category when the repository does not maintain it or the change cannot affect it.
 
 Automate semantic drift checks when practical: compile examples, validate links and paths, parse schemas and configuration, compare generated artifacts with their authority, test documented commands and served documentation, and render owned diagrams or reports. Avoid tests that freeze prose or heading count.
 
@@ -110,4 +110,4 @@ An internal refactor with no change to documented behavior, boundary, command, i
 
 On handoff, distinguish artifacts changed, behavior or contracts covered, checks performed, current sources and renders inspected, intentionally unchanged documents, and stale, blocked, proposed, subjective, or externally owned claims.
 
-Workflow-specific review questions are: Is there a current blueprint? Is the active milestone executable and current? Can a new reader safely use the project from the README? Does every fact have one owner and lifecycle? Did a settled decision become an ADR? Which documents or derivatives can drift, and how were they checked?
+Workflow-specific review prompts are optional: Does this work need a shared project map or specification? Can a new reader use the changed behavior from the existing entry point? Which maintained document owns the changed fact? Did a genuinely consequential decision need an ADR? Check only the prompts that affect the requested delivery.

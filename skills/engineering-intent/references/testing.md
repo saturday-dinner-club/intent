@@ -12,7 +12,7 @@ Testing is executable quality assurance: unit tests establish feature behavior, 
 | Integration | Do components connect through real contracts and compose correctly? | The workflow as experienced by the user |
 | End-to-end | Does the running system work through the user's actual entry point? | Every internal branch, failure transition, or capacity limit |
 
-A user-visible feature must have all applicable layers. If a layer is genuinely absent, state why; environment inconvenience does not make it inapplicable. Put each assertion at the narrowest boundary able to disprove the risk, then add higher-level evidence for wiring and user behavior.
+Choose the smallest set of layers that can disprove the current claim. An ordinary change rarely needs every layer: focused unit or contract evidence may be enough for local logic, while integration or end-to-end evidence is warranted when the change crosses that boundary. Put each assertion at the narrowest useful boundary and add higher-level evidence only for distinct wiring or user behavior.
 
 Static analysis, race detection, fuzzing, property and compatibility tests, smoke tests, benchmarks, load tests, and subjective review complement these layers rather than silently replacing them.
 
@@ -28,7 +28,7 @@ Choose assertions before choosing fixtures. State the observable postcondition, 
 
 ## Unit tests verify feature logic
 
-Keep unit tests fast, deterministic, local, and diagnostic. Cover relevant success, rejection, boundary values, invariants, state transitions, stable errors, duplicates, cancellation, timeout decisions, recovery logic, and regressions. Assert contracts and state, not private helper order or scheduler accidents.
+Keep unit tests fast, deterministic, local, and diagnostic. Cover the changed success path and the failures or regressions most likely to matter; select among rejection, boundaries, invariants, state transitions, stable errors, duplicates, cancellation, timeout, and recovery rather than treating them as a mandatory matrix. Assert contracts and state, not private helper order or scheduler accidents.
 
 For Go, actively use the built-in `testing` package: table tests and subtests when clearer, `t.Helper`, `t.TempDir`, `t.Setenv`, cleanup hooks, `t.Parallel` only for truly independent state, and the race detector or built-in fuzzing for concurrent or parser-heavy code. Prefer direct assertions with useful failure messages; do not add assertion or mocking frameworks merely to shorten ordinary tests.
 
@@ -76,9 +76,11 @@ An indispensable missing prerequisite follows the external-dependency skip rule 
 
 End-to-end data and accounts should be synthetic and scoped. Avoid production tenants, shared buckets, mutable public fixtures, and credentials discovered from a developer machine. A test that creates external state must identify ownership, cost, timeout, and cleanup, including what remains after an interrupted run.
 
-## Smoke every completed feature
+## Smoke when assembly is part of the claim
 
-After implementing each coherent feature, a smoke test through the closest real user-facing entry point is **mandatory** before completion is claimed. It is the smallest bounded run that:
+Run a smoke test through the closest real user-facing entry point when the change affects assembly, packaging, startup, routing, configuration, deployment, or a workflow that narrower tests cannot represent. A repository's established smoke command should normally continue to run. A local logic change, early prototype, or unavailable environment does not require creating a new smoke harness merely to claim scoped completion.
+
+When smoke is warranted, keep it to the smallest bounded run that:
 
 1. builds or starts the actual artifact;
 2. performs one representative action through the real entry point;
@@ -112,14 +114,14 @@ Organize commands so a contributor can tell exactly which layer ran. The fast de
 
 ## Decide whether performance is measurable
 
-For every implemented feature, decide whether it has a useful metric and stable representative workload. If yes, read [performance-and-benchmarks.md](performance-and-benchmarks.md) and include reproducible benchmark code in the same change. If not, do not manufacture a meaningless number.
+Read [performance-and-benchmarks.md](performance-and-benchmarks.md) when performance is an explicit requirement, a plausible regression risk, or a decision that cannot be made credibly without measurement. Do not require a performance decision or benchmark for every feature, and do not manufacture a meaningless number.
 
 ## Report evidence honestly
 
-Separate implementation from verification. Name the unit, integration, end-to-end, and smoke commands; dependencies exercised; passed, failed, and skipped checks; skip reasons and unverified boundaries; specialized evidence; and subjective or operator-owned QA remaining.
+Separate implementation from verification. Name the checks actually run, their result, and any material prerequisite or boundary that limits the claim. List skipped checks only when they were expected by the task or repository, not every theoretically possible layer.
 
 `Tests pass` must name its scope. Production readiness additionally needs the environment, compatibility, failure, security, and capacity evidence appropriate to the system.
 
 Preserve enough output to reproduce failures without publishing secrets: command, relevant version, seed or workload, prerequisite state, and bounded logs. If a check is manual, record what was observed and its limits. If a test was not attempted because it was out of scope, distinguish that from an attempted skip caused by a missing prerequisite.
 
-Testing-specific review questions are: Which unit tests prove the feature logic? Which integration tests cross the changed connection or composition boundary? Which end-to-end path uses the user's interface? Was the mandatory smoke run? Did available real dependencies run while absent ones skip explicitly? Are doubles narrower than the claim? What remains unverified?
+Testing-specific review prompts are optional: What is the cheapest test that can fail for this change? Does a changed boundary need integration evidence? Is assembly or user interaction part of the claim? Are doubles narrower than the claim? What material behavior remains unverified?

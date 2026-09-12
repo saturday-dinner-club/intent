@@ -2,7 +2,7 @@
 
 Status: living reference
 
-Observability explains what the system did, why, where time went, and which capacity or dependency degraded. It is operational evidence, not business authority. This reference owns signal semantics and behavior; backend preferences live in [observability-and-build-preferences.md](observability-and-build-preferences.md).
+Observability explains what the system did, why, where time went, and which capacity or dependency degraded. It is operational evidence, not business authority. Add or revise signals for a concrete operator, debugging, or product question; a new feature does not automatically need a complete logs-traces-metrics package. This reference owns signal semantics and behavior; backend preferences live in [observability-and-build-preferences.md](observability-and-build-preferences.md).
 
 ## Keep signal roles distinct
 
@@ -75,7 +75,7 @@ Retention follows data class and investigation need. Separate debug, normal oper
 
 ## Preserve lifecycle visibility
 
-A process should expose startup and non-secret mode, dependency/capability initialization, readiness and admission changes, degradation and recovery, drain and reassignment, bounded shutdown, and final flush results.
+A production long-running process should expose the lifecycle transitions operators actually need. Select among startup mode, dependency initialization, readiness, admission, degradation, recovery, drain, reassignment, shutdown, and flush rather than emitting every transition for a prototype or short-lived command.
 
 Stop admission and drain owned work before closing telemetry. Flush with a deadline, continue cleanup after exporter failure, and use only a safe local fallback after remote providers close. Crash-time flush is unreliable; recovery-critical evidence also belongs in durable domain state, events, or checkpoints.
 
@@ -85,6 +85,6 @@ Instrumentation should follow an explicit signal gap. First trace the runtime pa
 
 ## Verify useful visibility
 
-Test structured output, typed fields, levels and invalid configuration, cross-boundary correlation, redaction and size bounds, partial process output, overflow and sampling, sink isolation, exporter-disabled operation, collector outage, shutdown timeout, machine-consumed schema compatibility, metric units/cardinality, and representative burst behavior. Inspect deployed or local-runtime output: unit tests cannot prove collector parsing, timestamps, deduplication, routing, and backend queries.
+Test the signal properties changed or relied on by the current claim. Options include structured fields, levels, correlation, redaction, size bounds, overflow, sampling, sink isolation, exporter failure, shutdown, schema compatibility, metric units/cardinality, or burst behavior. Inspect deployed or local-runtime output only when collector or backend behavior is part of the claim; unit tests cannot prove those external properties.
 
 Observability-specific review questions are: Which operator question does each signal answer? Are signal types and authority distinct? Which identities correlate execution versus durable work? What bounds the hot path? What happens during exporter failure? Which sensitive fields and retention apply? Can lifecycle and recovery be observed in the actual runtime?

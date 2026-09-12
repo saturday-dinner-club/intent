@@ -8,15 +8,15 @@ Use this reference for specialized architecture, report, example, localization, 
 
 Architecture documentation should explain relationships source code does not: context and actors; quanta, deployables, and ownership; dependency and data-flow direction; public interfaces; authority, projections, and durability; runtime topology and failure propagation; trust boundaries; lifecycle and recovery; observability; limits and unsupported topologies.
 
-For a major architecture change, creating or updating a Draw.io diagram is required whenever the environment can produce and verify one. The first architecture of a multi-component project normally qualifies. Major changes include system or quantum boundaries, deployables, topology, authority, public protocols, dependency direction, trust or data flow, lifecycle or failover, failure containment, or relationships among three or more components that are clearer visually.
+Create or update an architecture diagram when the relationships are materially clearer visually and the user or repository benefits from maintaining it. A planning conversation, prototype, early MVP, or first multi-component sketch does not automatically require a committed Draw.io source and render. Prefer the repository's existing format; introduce Draw.io only when its editable artifact earns the maintenance cost.
 
-Store the editable `.drawio` source and a reviewable `.svg` render by default, or the repository-standard alternative. Update and commit them together and link the render from the owning document.
+When the repository maintains Draw.io artifacts, normally store the editable `.drawio` source with a reviewable `.svg` render, update them together, and link the render from the owning document.
 
 Draw responsibility and directional semantics, not only product logos and bidirectional arrows. Distinguish authoritative and derived state, external systems, materially different flows, and trust or failure boundaries where relevant. Use separate views when one drawing cannot express topology, sequence, ownership, and failure clearly.
 
 Useful views include system context, runtime/container topology, authority and data flow, a critical sequence, and failure or recovery behavior. Do not force them into one unreadable canvas. Name components by responsibility rather than transient instance IDs, and use a legend only when visual encoding is not self-evident.
 
-Verify the source opens, the render matches, text is legible, links resolve, and both agree with implemented architecture. If tooling is unavailable, update textual architecture and report the missing diagram evidence explicitly.
+When a diagram is changed, verify the source opens, the render matches, text is legible, links resolve, and both agree with the architecture. Report unavailable tooling only when diagram verification is part of the requested claim.
 
 ## Typst reports
 

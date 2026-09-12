@@ -2,11 +2,11 @@
 
 Status: living reference
 
-An interface is a semantic boundary: what another component may rely on without depending on the current implementation. A contract covers behavior, authority, errors, time, ordering, capacity, lifecycle, evolution, and recovery—not only fields or signatures.
+An interface is a semantic boundary: what another component may rely on without depending on the current implementation. Cover behavior, authority, errors, time, ordering, capacity, lifecycle, evolution, and recovery only to the extent they affect the current consumer or compatibility promise. An exploratory private interface can remain explicitly unstable.
 
 ## Assign one owner and authority
 
-Every contract needs one owning quantum or component for semantics, authoritative IDL/schema/code declaration, compatibility, versions, deprecation, conformance, and access classification. Consumers may contribute; shared ownership usually means no ownership.
+A maintained or shared contract needs a clear owning quantum or component and one authoritative declaration. Add explicit compatibility, versions, deprecation, conformance, and access classification when independent consumers or lifecycle require them; do not invent each mechanism for a local prototype boundary.
 
 Designate exactly one source of truth. Schema-first, IDL-first, and code-first are valid. Generated and copied declarations remain derivatives and must be reproducible and checked for drift.
 
@@ -20,17 +20,19 @@ Create and replace should remain distinct when overwrite can destroy information
 
 ## Distinguish interaction semantics
 
+Choose the semantics that change caller behavior now. An early internal contract may begin with input, output, ownership, one meaningful success point, and a small error set; add ordering, replay, compatibility, and lifecycle detail as independent consumers or failure consequences appear.
+
 ### Commands
 
-Define authority and preconditions, stable operation identity, validation and authorization, acknowledgment milestone, duplicate behavior, conflicts, retry disposition, and observable terminal state.
+Define the authority, preconditions, and acknowledgment meaning needed by the command. Add stable operation identity, duplicate behavior, conflicts, retry disposition, and terminal-state detail when retries or asynchronous completion are part of the contract.
 
 ### Queries
 
-Define authoritative or projected source, staleness, pagination and cursor stability, filtering and ordering, cache behavior, not-found semantics, and partial results.
+Define the source and result semantics the current query exposes. Add staleness, pagination, ordering, cache, and partial-result rules when those capabilities exist.
 
 ### Events
 
-Define producer and owner, stable event and entity identity, occurrence and publication times, causal/epoch/version data when required, ordering scope, duplicates, delay, unknown fields, retention, and replay.
+Define producer, owner, and the identity needed to consume the event. Add occurrence/publication times, causality, versions, ordering, duplicates, delay, retention, and replay according to the delivery and compatibility promise.
 
 ### Projections and notifications
 
@@ -76,9 +78,11 @@ Review wire, semantic, behavioral, operational, and capability compatibility sep
 
 Deprecation needs an owner, evidence of remaining use, and a removal condition. A breaking change may be correct when the old contract is unsafe or misleading, but compatibility cost must be explicit rather than hidden behind a regenerated client.
 
-## Require OpenAPI for REST
+## Use OpenAPI for maintained REST contracts
 
-Every REST API, including internal APIs, **must** have an OpenAPI description from its first usable surface. Update it in the same change as every route or contract modification.
+Use an OpenAPI description when a REST API is a maintained integration surface, has independent consumers, generates clients or references, is intended for publication, or the repository already uses OpenAPI. A short-lived prototype or purely local endpoint may begin from code and tests without OpenAPI if its instability is understood. Do not add OpenAPI solely because an internal route exists.
+
+When OpenAPI is the maintained contract or derivative, update it with route and contract changes.
 
 Choose one authority:
 
@@ -115,6 +119,6 @@ Context propagation is also a compatibility surface. Define which deadlines can 
 
 ## Verify contract behavior
 
-Use common conformance suites for real providers and deterministic substitutes; schema/IDL compatibility checks; golden wire vectors; old/new reader-writer pairs; unknown fields/enums; duplicates; conflicts, deadlines, cancellation, and partial failure; concurrent pagination; maximum-size/overload cases; long-session reconnect/resume/drain; negotiation and downgrade; and real external clients where interoperability is claimed.
+Select contract evidence that matches the changed promise. Options include common conformance cases, schema/IDL compatibility, representative wire vectors, old/new readers, unknown fields, duplicates, conflicts, deadlines, cancellation, limits, reconnect, negotiation, or a real external client. Do not require the whole matrix for every interface.
 
 Contract-specific review questions are: Who owns and publishes the authority? Which interaction kind and acknowledgment apply? Which stable errors change caller behavior? What are the time, ordering, capacity, and session rules? Can adjacent versions coexist and roll back? Do real and local adapters satisfy the same behavior?

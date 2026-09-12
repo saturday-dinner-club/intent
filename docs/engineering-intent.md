@@ -1,10 +1,10 @@
 # Engineering Intent
 
-The agent-facing source uses progressive references so a task loads only the guidance it needs. This page is the human-readable index and does not duplicate their contents.
+The agent-facing source uses progressive references so a task loads only the guidance that changes a decision. The guidance is risk-proportional: prototypes and ordinary changes stay narrow, while broader operational evidence is reserved for explicit production-readiness, audit, or concrete high-consequence risk. This page is the human-readable index and does not duplicate reference contents.
 
 ## Normative core
 
-- [General engineering](../skills/engineering-intent/references/general-engineering.md): always-loaded vertical delivery, authority, durability, recovery, retries, failure isolation, capacity, lifecycle, baseline security, verification, and repository safety.
+- [General engineering](../skills/engineering-intent/references/general-engineering.md): scope calibration plus vertical delivery, authority, durability, recovery, retries, failure isolation, capacity, lifecycle, baseline security, verification, and repository safety.
 
 ## Engineering domains
 
@@ -16,10 +16,10 @@ The agent-facing source uses progressive references so a task loads only the gui
 
 ## Implementation and evidence
 
-- [Testing and QA](../skills/engineering-intent/references/testing.md): unit, integration, end-to-end, and mandatory per-feature smoke evidence; embedded implementations and narrow doubles; external skips; failure, lifecycle, fixtures, suites, and honest reporting.
+- [Testing and QA](../skills/engineering-intent/references/testing.md): risk-selected unit, integration, end-to-end, and smoke evidence; embedded implementations and narrow doubles; external skips; failure, lifecycle, fixtures, suites, and honest reporting.
 - [Performance and benchmarks](../skills/engineering-intent/references/performance-and-benchmarks.md): conditional benchmark-code requirement, representative workloads, reproducibility, evidence boundaries, and noisy-environment interpretation.
 - [Code style](../skills/engineering-intent/references/code-style.md): familiar precise names, intent-focused comments, local readability, and repository conventions.
-- [Runtime artifacts and local deployment](../skills/engineering-intent/references/runtime-artifacts-and-local-deployment.md): reproducible processes, practical mandatory Dockerfiles, container contracts, Compose or local Kubernetes fixtures, readiness, shutdown, smoke, and scoped cleanup.
+- [Runtime artifacts and local deployment](../skills/engineering-intent/references/runtime-artifacts-and-local-deployment.md): reproducible supported processes, conditional Dockerfiles, container contracts, Compose or local Kubernetes fixtures, readiness, shutdown, smoke, and scoped cleanup.
 
 ## Project knowledge
 

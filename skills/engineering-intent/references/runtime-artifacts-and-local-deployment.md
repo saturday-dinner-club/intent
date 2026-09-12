@@ -6,7 +6,7 @@ Use this reference when work creates or changes a runnable process, Dockerfile, 
 
 ## Make runnable artifacts reproducible
 
-For each runnable command or process identify:
+For a runnable command or process being created, packaged, or prepared for others, identify the items needed by its current contract:
 
 - build method, entry point, arguments, and required configuration;
 - secrets and how they enter at runtime;
@@ -19,11 +19,11 @@ Do not rely on an undeclared global tool, sibling checkout, credential, generate
 
 Keep build inputs and runtime inputs distinct. Generated assets needed at runtime must be produced by a declared build step or checked in under repository policy. Record supported architectures and native-library requirements instead of allowing the local host to satisfy them invisibly.
 
-## Provide a Dockerfile whenever practical
+## Add a Dockerfile when it serves the delivery
 
-When a project or owned process can be usefully built, tested, packaged, or run in a container, it **must** include a Dockerfile. This is practical when its toolchain and dependencies can be obtained non-interactively and the container provides a meaningful build/test environment, release artifact, CLI, worker, or service runtime.
+Add or change a Dockerfile when the user requests a container, the repository already treats it as a supported artifact, deployment will use it, or a specific build/runtime claim needs container evidence. The fact that a project could run in a container is not enough. Do not add container packaging to a library, CLI, prototype, or focused feature solely for completeness.
 
-A GUI, mobile app, hardware-bound runtime, kernel feature, or host integration need not pretend to run in a container. A build container may still be valuable. If no useful Dockerfile can be written, record the exact constraint in the README, blueprint, or milestone specification; do not add a placeholder.
+A GUI, mobile app, hardware-bound runtime, kernel feature, or host integration need not pretend to run in a container. A build container may still be valuable when requested. Explain the absence of a Dockerfile only when users reasonably expect one or the task is evaluating packaging; do not add a placeholder or a document solely to record that it was skipped.
 
 Prefer one Dockerfile per independently runnable process. Named targets may share a file when inputs, outputs, ownership, and lifecycle remain clear.
 
@@ -80,11 +80,11 @@ Avoid cluster-wide resources, operators, CRDs, host mounts, privileged container
 
 ## Verify the artifact
 
-When the environment provides a compatible builder, build the intended image. When container execution is claimed:
+When the task creates or changes an intended image and the environment provides a compatible builder, build it. When container execution is part of the claim:
 
 1. run the image directly or through the selected local fixture;
 2. wait for real readiness;
-3. execute the mandatory smoke path through the exposed user interface;
+3. execute a representative smoke path through the exposed user interface;
 4. observe the result, critical side effect, and fatal runtime signals;
 5. stop through the normal signal path;
 6. verify bounded shutdown and scoped cleanup.
@@ -93,4 +93,4 @@ Run integration or end-to-end tests against the image when wiring, permissions, 
 
 Inspect final image contents and history when secret leakage, unintended source, package managers, test fixtures, or large native dependencies are a risk. A successful build proves neither a minimal image nor correct runtime permissions. Multi-platform claims require at least build plus representative execution evidence for each supported target.
 
-Review artifact-specific questions only: Is each process reproducible? Is a useful Dockerfile present or its constraint recorded? Are secrets and state handled honestly? Does readiness mean admission? Did the image build, run, smoke, stop, and clean up within its owned scope?
+Review only questions that match the changed artifact: Can another user reproduce the supported process? Are secrets and state handled honestly? If an image or readiness contract changed, did the relevant build, run, smoke, stop, and cleanup behavior work?

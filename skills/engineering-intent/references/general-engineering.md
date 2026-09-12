@@ -6,25 +6,33 @@ Audience: maintainers, reviewers, and coding agents
 
 ## Purpose and precedence
 
-This is the normative core for substantive engineering work. It owns the reusable principles; specialized references describe only their domain consequences.
+This is the shared core for consequential engineering work. It owns reusable principles; specialized references describe only their domain consequences. It is not a universal release checklist.
 
 Defaults never replace a deliberate local contract. Resolve conflicts in this order: the latest explicit user decision, the current system's contracts and documented invariants, this reference, then implementation convenience.
 
-Preserve enough reasoning to revisit a material decision: observed problem, constraints, authority and invariants, alternatives, implementation or migration path, evidence obtained, and remaining uncertainty. Generated code is a proposed implementation within that context, not evidence by itself.
+Preserve enough reasoning to revisit a material decision. Depending on consequence, that may be a short code comment or a fuller record of the problem, constraints, alternatives, path, evidence, and uncertainty. Do not require a formal artifact for a small or reversible choice. Generated code is a proposed implementation within that context, not evidence by itself.
+
+## Match depth to the requested horizon
+
+Start with the user's stated outcome, the repository's maturity, and the consequence of being wrong. Exploration and early MVP work normally optimize for learning with a narrow working path; ordinary delivery preserves existing contracts with focused evidence; production-readiness or audit work justifies broader failure, security, compatibility, and operational treatment.
+
+Do not silently promote a prototype or MVP into a production platform. Vocabulary such as durable, distributed, secure, or observable identifies important design properties, but does not require every possible mechanism or proof in the first slice. Capture only the decisions needed now and briefly name a deferred issue only when it affects use, safety, or the next decision.
+
+The following sections provide questions and techniques to choose from. Apply a section when it changes the design or evidence for the current scope. Do not translate every paragraph into an acceptance criterion, task, document, or test.
 
 ## Complete the smallest useful behavior
 
-Prefer a coherent vertical slice over disconnected components. Completion means the requested externally meaningful behavior is connected through every applicable contract, state transition, runtime path, failure policy, signal, verification layer, runnable artifact, and owning document.
+Prefer a coherent vertical slice over disconnected components. Completion means the requested externally meaningful behavior works at the boundary named by the task, with the contracts and evidence needed for that claim. It does not imply every possible state transition, signal, deployment artifact, or document is production-ready.
 
 This is scope-sensitive. A narrow change need not create unrelated infrastructure or documents. State precisely what works, what evidence exists, and what remains external. Compilation is not implemented behavior; implementation is not production readiness.
 
 Specialized references define the evidence or artifact their domain contributes. They do not create independent, cumulative definitions of feature completion.
 
-Treat the slice boundary as a decision, not a license to touch everything nearby. Include a contract, migration, artifact, or document when the requested behavior depends on it; otherwise leave the neighboring concern alone and record the limitation only if it affects the claim. A small internal refactor may need focused tests and no new deployment shape, while one new public endpoint may need routing, schema, authorization, OpenAPI, runtime smoke, and README changes because those are all parts of that behavior.
+Treat the slice boundary as a decision, not a license to touch everything nearby. Include a contract, migration, artifact, or document when the requested behavior depends on it or the repository already treats it as part of the change; otherwise leave the neighboring concern alone. Record a limitation only when it affects safe use or the stated claim. A small internal refactor may need only focused tests. A public endpoint may need routing and authorization now while broader publication or operational evidence waits for the milestone that owns it.
 
 ## Separate authority, durability, projection, and delivery
 
-For a stateful path identify:
+For a stateful path where loss, duplication, or stale decisions have material consequences, identify the applicable distinctions:
 
 - the authority that may decide and mutate;
 - the source of truth and exact durability boundary;
@@ -53,7 +61,7 @@ Use transactions, outboxes, append-only commands, compare-and-swap, epochs, leas
 
 ## Isolate failure and bound resources
 
-Assume multiple processes, replicas, nodes, and partial dependency failures unless the product explicitly requires a singleton.
+Use the topology the user or repository actually targets. Do not design for multiple replicas, regions, or failover unless they are in scope or a near-term constraint; when they are, account for partial dependency failures and competing owners.
 
 - Separate admission of new work from completion of accepted work.
 - Prefer make-before-break replacement for a healthy live path.
@@ -61,9 +69,9 @@ Assume multiple processes, replicas, nodes, and partial dependency failures unle
 - Let acceleration failures remove only the capability they own.
 - Make degraded modes explicit; they must not masquerade as normal capacity.
 
-Every queue, payload, batch, wait, child process, goroutine or task, retry loop, and in-flight operation needs a bound or lifecycle owner. Backpressure is product behavior: choose rejection, reduced quality, shedding, producer pause, or bounded backlog before memory exhaustion chooses for you.
+Bound externally controlled, potentially unbounded, expensive, or long-lived work when exhaustion is a credible risk. Prefer existing repository limits for ordinary local work. When backpressure is product behavior, choose rejection, reduced quality, shedding, producer pause, or bounded backlog deliberately.
 
-Local single-instance success does not prove replica safety. For each dependency edge, decide whether its loss rejects new work, interrupts accepted work, returns stale data, or removes an optional capability. A system with separately packaged services but mandatory synchronous availability across all of them still has one effective failure boundary.
+Local single-instance success does not prove replica safety. When replica safety or dependency degradation is part of the claim, decide how loss affects new and accepted work. A system with separately packaged services but mandatory synchronous availability across all of them still has one effective failure boundary; an MVP may simply state that limitation instead of solving it.
 
 ## Match retries to the recovery objective
 
@@ -81,13 +89,13 @@ Separate create from replace when overwrite can destroy data. Make deletion work
 
 ## Treat observability as behavior
 
-Critical transitions need enough structured logs, traces, bounded-cardinality metrics, readiness, and domain timestamps to locate delay, loss, rejection, stale state, and recovery. High-cardinality identities belong in logs or traces, not metric labels. Never emit credentials, signing material, or sensitive payloads.
+Critical production transitions need enough visibility to locate important delay, loss, rejection, stale state, or recovery. Reuse existing logging and telemetry patterns and add the smallest signal that closes a concrete gap; a new feature does not automatically require logs, traces, metrics, readiness, and domain timestamps together. High-cardinality identities belong in logs or traces, not metric labels. Never emit credentials, signing material, or sensitive payloads.
 
 Expected cancellation, disconnect, cache miss, or graceful shutdown is not an error unless it violates a declared transition or loses required work. Telemetry should reveal behavior without becoming the source of business truth or a synchronous dependency of the hot path.
 
 ## Own lifecycle and recovery
 
-Every process that owns listeners, leases, assignments, buffered work, child processes, checkpoints, or finalization owns its full lifecycle. Normal shutdown should become unready, stop admission, release or drain bounded work, finalize safe durable state, stop children and loops, close dependencies and telemetry in order, and exit when the budget expires.
+A long-running process that owns accepted work or external resources should own the lifecycle stages that matter to its current runtime contract. Production services may need readiness, admission stop, bounded drain, finalization, child cleanup, dependency closure, and a shutdown deadline; a local prototype or short-lived command may need only reliable cancellation and cleanup.
 
 Graceful shutdown and crash recovery are distinct. Grace reduces avoidable recovery work; crash recovery cannot depend on it having occurred.
 
@@ -95,19 +103,19 @@ Startup and readiness are also different. Process liveness says the runtime exis
 
 ## Keep security controls distinct
 
-Network placement, transport security, authentication, authorization, confidentiality, abuse controls, and audit solve different problems. Any omitted control must be explicit and scoped.
+Network placement, transport security, authentication, authorization, confidentiality, abuse controls, and audit solve different problems. Make an omitted control explicit when its absence could surprise a user, widen exposure, or contradict the stated readiness level; do not require a full threat model for unrelated ordinary work.
 
 Minimize credential scope, lifetime, and distribution. Keep raw credentials out of URLs, logs, events, and ordinary durable state. Separate identity proof from domain authorization. Opaque identifiers resist enumeration; they are not authorization or encryption. Make deletion claims honest about caches, replicas, backups, and provider lifecycles. Add cryptography or global coordination only for a concrete threat or correctness need.
 
 ## Build verification evidence by risk
 
-Use the cheapest evidence able to disprove the change, then move toward the boundary where the behavior matters: static checks; focused unit and contract tests; repository-wide tests; race, property, fuzz, or interruption tests; migrations and compatibility; artifact builds; readiness and runtime inspection; then real protocol, browser, hardware, provider, load, soak, or chaos evidence where applicable.
+Use the cheapest evidence able to disprove the changed behavior. Focused static checks or tests are often enough for ordinary work. Move toward repository-wide, integration, end-to-end, artifact, real-provider, load, soak, or chaos evidence only when the claim crosses that boundary, the repository expects it, or the user asks for the corresponding assurance.
 
-Test failures immediately before and after durability boundaries when state is material. Golden representations protect compatibility but do not prove interoperability with real clients or environments.
+Consider failures immediately before and after a durability boundary when the consequence is material and the task claims recovery behavior. A focused MVP may test the main durable transition and defer a crash-point matrix. Golden representations protect compatibility but do not prove interoperability with real clients or environments.
 
 Choose evidence by the claim: unit tests for owned logic, integration tests for real adapters and composition, end-to-end tests for user workflows, smoke for the assembled artifact, compatibility tests for version skew, and operational tests for the deployment environment. Failure, race, fuzz, load, soak, and chaos evidence is conditional on the risk rather than a ceremonial checklist.
 
-Report implementation separately from evidence. Name checks that passed, failed, or skipped, the real or substituted dependencies exercised, and externally owned validation that remains.
+Report implementation separately from evidence. Name the checks actually run and any material boundary they do not cover. Do not enumerate every test category that was out of scope.
 
 ## Work safely in an existing repository
 
@@ -119,7 +127,7 @@ Do not hide an unavailable check behind a substitute. An embedded implementation
 
 ## Decision frame
 
-Answer only the rows material to the task, in code or its owning documentation:
+Use only the rows that expose a consequential decision. Do not reproduce the table or answer every row by default:
 
 | Concern | Question |
 | --- | --- |
@@ -135,4 +143,4 @@ Answer only the rows material to the task, in code or its owning documentation:
 | Observability | How will delay, loss, rejection, or degradation be found? |
 | Evidence | Which claims are verified here and which remain external? |
 
-Amend this core only for a repeated cross-cutting need. Keep product topology, vendors, versions, and temporary workarounds in their owning repositories or specialized references.
+Amend this core only for a repeated cross-cutting need. Keep product topology, vendors, versions, and temporary workarounds in their owning repositories or specialized references. The absence of an answer to an immaterial row is not incomplete work.

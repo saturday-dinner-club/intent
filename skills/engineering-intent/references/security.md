@@ -2,7 +2,7 @@
 
 Status: living reference
 
-Use this reference for trust boundaries, identity, authority, credentials, secrets, sensitive data, abuse controls, retention, deletion, or cryptography. Select controls from the current threat model and owning contracts, not from availability of a mechanism.
+Use this reference for trust boundaries, identity, authority, credentials, secrets, sensitive data, abuse controls, retention, deletion, or cryptography. Select controls from the current threat model, exposure, readiness level, and owning contracts, not from availability of a mechanism. Baseline safety such as avoiding secret leakage and dangerous permissive defaults applies broadly; full credential lifecycle, compromise, regional placement, audit, and abuse treatment belongs only to work that owns those concerns.
 
 ## Name the protected capability
 
@@ -22,7 +22,7 @@ Map trust boundaries across external clients, gateways, internal networks, queue
 
 ## Treat input as data and work
 
-Every boundary input is untrusted in syntax, semantics, authority, and resource cost. Bound encoded/decoded size, depth, counts, field lengths, duration, redirects, parsing/transcoding/rendering time, and fan-out before expensive work where possible.
+Treat externally controlled or amplification-capable boundary input as untrusted in syntax, semantics, authority, and resource cost. Apply the simplest bounds that address credible harm in the current environment; select among encoded/decoded size, depth, counts, field lengths, duration, redirects, expensive parsing, and fan-out rather than implementing every bound by default.
 
 For server-side fetches, restrict schemes, destinations, ports, redirects, and resolved network ranges; reapply policy after resolution and every redirect. Validate file type from content when it matters, reject ambiguous normalization, and isolate risky parsers or converters according to actual exploit and amplification impact.
 
@@ -52,9 +52,9 @@ Scope credentials by purpose, audience, resource, and capability; limit lifetime
 
 Sessions, refresh/device credentials, publish keys, admission tokens, signing keys, storage credentials, and break-glass access have distinct lifecycles. One credential must not silently serve unrelated purposes. Opaque IDs are not authorization, encryption, or DRM.
 
-## Own every secret lifecycle
+## Own material secret lifecycles
 
-Define generation and randomness; first plaintext location; process entry; allowed consumers; persistence, replication, backup, and export; rotation and overlap; revocation/fencing; avoidance in memory copies, files, logs, dumps, and telemetry; and permanent-loss consequences.
+For secrets the system creates, stores, or operates as a durable capability, define the lifecycle stages that affect current exposure and recovery. Long-lived or high-value secrets may require generation, first plaintext location, process entry, consumers, persistence, replication, backup, export, rotation, revocation, leakage prevention, and loss consequences. A short-lived local development token does not require a production key-management design, though it still must not be committed or logged.
 
 Environment variables, files, secret stores, hardware-backed keys, and protected memory solve different parts. For high-value plaintext, guarded memory may reduce swapping and remnants, but keep scopes small, avoid unmanaged copies and formatted strings, wipe buffers, understand FFI/GC/dumps/OS limits, and measure overhead. It cannot protect against code already holding process authority.
 
@@ -92,7 +92,7 @@ Scanners provide findings, not proof. Triage by exposure, reachability, controls
 
 ## Verify the security contract
 
-Test replay and atomic consumption; expiry/not-before/audience/purpose/key failures; rotation overlap and stale verifier caches; revocation convergence; inheritance and denial conflicts; tenant isolation; concurrent grants/removals/sessions; redaction; restart and restore; loss and compromise; deletion across derived state; malformed and maximum-cost input; and downgrade or algorithm confusion.
+Choose security tests that exercise the control or abuse case changed by the task. Possible targets include replay, expiry, audience, rotation, revocation, authorization conflicts, tenant isolation, redaction, restore, deletion, malformed input, resource amplification, or downgrade. A comprehensive matrix is appropriate for a security review or production-readiness claim, not every feature touching input or credentials.
 
 Use maintained cryptographic libraries and official vectors. Do not invent primitives or protocols in ordinary application work.
 

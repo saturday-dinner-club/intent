@@ -2,7 +2,7 @@
 
 Status: living reference
 
-Use this reference to compose quanta and reason about cross-system workflows, consistency, scaling, regions, ownership movement, failure propagation, and umbrella evidence. [Quantum and monorepo](quantum-and-monorepo.md) owns boundary definition; General Engineering owns generic durability, capacity, and lifecycle principles.
+Use this reference to compose quanta and reason about cross-system workflows, consistency, scaling, regions, ownership movement, failure propagation, and umbrella evidence. Select only dimensions that affect the current design horizon; a single-region MVP does not need multi-region, failover, repartitioning, or full operational evidence merely because the system may grow. [Quantum and monorepo](quantum-and-monorepo.md) owns boundary definition; General Engineering owns generic durability, capacity, and lifecycle principles.
 
 ## Compose without erasing ownership
 
@@ -10,7 +10,7 @@ For each important fact and decision, one quantum owns mutation, authoritative r
 
 Shared gateways, messaging, identity primitives, observability, deployment, and connectivity are platform capabilities, not domain authorities. A gateway may route and apply cross-cutting policy; a broker transports messages; identity proves a subject; observability records evidence. The resource-owning quantum retains domain authorization and truth.
 
-Each shared platform still needs an owner, version policy, capacity model, failure boundary, and compatible local substitute. A platform outage may correlate failures across many quanta; that operational leverage does not justify moving their business invariants into the platform.
+Each shared platform needs an owner and a failure boundary appropriate to its current use. Add version policy, capacity model, or a compatible local substitute when consumers or delivery need them, not automatically at first introduction. A platform outage may correlate failures across many quanta; that operational leverage does not justify moving their business invariants into the platform.
 
 Physical infrastructure can be shared while logical resources, policies, migrations, quotas, and recovery stay owned.
 
@@ -25,7 +25,7 @@ Make partial results contractual. A composed read may omit an optional source, r
 ## Choose the cross-quantum interaction class
 
 - **Synchronous request:** use when a current decision needs an authoritative answer and availability coupling is acceptable. Define deadline, cancellation, concurrency, failure mapping, and stale/degraded policy. Avoid cycles and unnecessary hot-path hops.
-- **Durable asynchronous work:** use when accepted work must survive receiver or network failure. Define durability, identity, idempotency, ordering, retries, poison handling, lag, and reconciliation.
+- **Durable asynchronous work:** use when accepted work must survive receiver or network failure. Start with the durability milestone and duplicate behavior; add ordering, retries, poison handling, lag, and reconciliation as the current workflow needs them.
 - **Disposable notification:** use for latency when disappearance is product-acceptable or repaired from durable authority. Loss may reduce immediacy, not corrupt truth.
 - **Local projection:** use when repeated authority calls create unacceptable latency or failure coupling. Define source, version/staleness, invalidation, rebuild, and fail-open/closed behavior.
 - **Scoped credential or assertion:** use when one authority can prove a decision once and a receiver can verify it locally within an explicit lifetime and revocation window.
@@ -43,7 +43,7 @@ Use strong coordination when conflicting acceptance, intermediate visibility, or
 
 Eventual consistency is valid only when divergence is bounded, observable, and repairable. Common mechanisms include outbox or CDC from authority, sagas, rebuildable read models, expected versions, epochs and fencing, monotonic offsets/versions, domain merge rules, and periodic reconciliation.
 
-For each asynchronous stage, record what has been durably accepted, how duplicate processing is recognized, which order is meaningful, where poison work waits, and how an operator sees lag and terminal failure. A retrying pipeline without a discoverable partial state is not recoverable merely because a broker retains messages.
+For an asynchronous stage whose accepted work must survive failure, decide the durability milestone and the duplicate or recovery behavior needed by the current claim. Add ordering, poison handling, lag, and terminal-failure operations when their consequences are material. A retrying pipeline without a discoverable partial state is not recoverable merely because a broker retains messages.
 
 Wall-clock order alone does not solve concurrent conflicts. Do not make every projection strict for one special action or hold a local transaction across a remote call without explicit failure justification.
 
@@ -81,7 +81,7 @@ Libraries shared within a quantum may contain cohesive business behavior. Cross-
 
 ## Verify at the umbrella boundary
 
-Each quantum uses contract-compatible substitutes for ordinary development. A separate umbrella topology validates claims that exist only between real components:
+Use a separate umbrella topology only to validate claims that exist between real components and matter to the requested assurance. Possible targets include:
 
 - mixed versions, rollout, rollback, and generated contracts;
 - identity proof and domain authorization;
@@ -94,8 +94,8 @@ Each quantum uses contract-compatible substitutes for ordinary development. A se
 - graceful drain, abrupt loss, and externally visible workflows;
 - capacity and effective failure isolation.
 
-Local fakes prove neither system interoperability nor availability. Conversely, ordinary feature work should not require the full production topology.
+Local fakes prove neither system interoperability nor availability, so keep claims narrow. Ordinary feature and MVP work should not build or exercise a full production topology solely for evidence.
 
-End-to-end timestamps and identities must outlive a sampled trace when workflows are durable: request/trace IDs explain one execution, operation/event IDs explain retries and replay, entity IDs locate domain state, and occurrence/durability/publication/application times expose pipeline delay. Metrics aggregate failure and capacity without entity IDs as labels.
+When a durable workflow claims replay, recovery, or delay diagnosis, retain the identities and timestamps needed for that claim outside sampled traces. Request/trace IDs may explain one execution, operation/event IDs retries and replay, entity IDs domain state, and selected domain times pipeline delay. Do not add every identity or timestamp before a consumer or operational question needs it. Metrics aggregate failure and capacity without entity IDs as labels.
 
-Architecture-specific review questions are: Who owns each cross-quantum workflow and fact? Which synchronous edge widens failure? What divergence and recovery are acceptable? What is the partition and ownership-movement rule? Which region or node failure changes behavior? Which claim requires umbrella rather than local evidence?
+Architecture-specific review prompts are optional: Who owns the changed cross-quantum workflow or fact? Which synchronous edge widens failure? What divergence and recovery matter now? Is partition, ownership movement, or regional behavior actually in scope? Which claim, if any, requires umbrella rather than local evidence?
