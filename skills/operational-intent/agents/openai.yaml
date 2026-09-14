@@ -1,0 +1,4 @@
+interface:
+  display_name: "Operational Intent"
+  short_description: "Guide evidence-driven operational judgment"
+  default_prompt: "Use $operational-intent to investigate and handle this situation at a depth proportional to its impact and risk."
