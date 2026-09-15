@@ -4,7 +4,7 @@ The agent-facing source uses progressive references so a task loads only the gui
 
 ## Normative core
 
-- [General engineering](../skills/engineering-intent/references/general-engineering.md): scope calibration plus vertical delivery, authority, durability, recovery, retries, failure isolation, capacity, lifecycle, baseline security, verification, and repository safety.
+- [General engineering](../skills/engineering-intent/references/general-engineering.md): scope calibration plus purpose-built configuration, vertical delivery, authority, durability, recovery, retries, failure isolation, capacity, lifecycle, baseline security, verification, and repository safety.
 
 ## Engineering domains
 

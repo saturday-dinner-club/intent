@@ -20,6 +20,14 @@ Do not silently promote a prototype or MVP into a production platform. Vocabular
 
 The following sections provide questions and techniques to choose from. Apply a section when it changes the design or evidence for the current scope. Do not translate every paragraph into an acceptance criterion, task, document, or test.
 
+## Configure the role, not the product category
+
+Start from the narrow role an instance owns in the surrounding system rather than importing every usual guarantee of its product category. A database may be used as a volatile transport buffer, a broker as disposable notification, or a search engine as a rebuildable projection. When the workload is deliberately specialized, prefer a small coherent profile that disables irrelevant durability, replication, retention, or background work and spends resources on the behavior that actually matters.
+
+This is contract minimization, not configuration-line minimization. State what may be lost, what must survive, who detects and repairs loss, how the component behaves at its capacity bound, and which control metadata remains durable even when the dataset does not. A visible rejection can be safer than silent eviction when the surrounding system can retry, shed, reconnect, or regenerate; the opposite may be true when continuity matters more than exact delivery.
+
+Remove a conventional guarantee only when its consequence is deliberate, bounded, observable, and accepted or recovered elsewhere. Keep a special-purpose profile separate from general deployments, and do not copy it to a different workload merely because it was efficient in its original role.
+
 ## Complete the smallest useful behavior
 
 Prefer a coherent vertical slice over disconnected components. Completion means the requested externally meaningful behavior works at the boundary named by the task, with the contracts and evidence needed for that claim. It does not imply every possible state transition, signal, deployment artifact, or document is production-ready.

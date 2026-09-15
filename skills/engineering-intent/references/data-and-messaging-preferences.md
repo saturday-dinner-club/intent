@@ -32,6 +32,8 @@ Use Redis for acceleration and short-lived coordination: rebuildable sessions or
 
 Separate deployments whose durability/failure policies differ. Choose AOF/recovery for control state that must survive; disable persistence for genuinely rebuildable acceleration when appropriate. Set memory and eviction by data meaning; `noeviction` exposes overload, not infinite capacity. Design multi-key atomic work for Cluster hash slots.
 
+When Redis is intentionally a short-lived transport buffer rather than a database or conventional cache, a zero-replica, persistence-off Cluster can be a coherent special-purpose profile. Use it only when upstream can regenerate or retransmit data, partial shard loss is acceptable, and loss or write rejection is visible. Preserve cluster identity and topology metadata when restart continuity needs them even if the transported dataset is disposable. Choose eviction versus explicit write failure according to whether silent removal or backpressure is safer for the surrounding pipeline.
+
 Do not mix authentication ceremonies, policy projections, discovery, control state, and media bytes into one Redis failure and retention policy merely because the commands are convenient. A lease or cached session also needs expiry, stale-read, clock, and restart semantics owned by the application.
 
 Redis Streams is not a universal Kafka or broadcast substitute. A consumer group distributes work; it does not fan every item to every interested receiver.

@@ -1,6 +1,6 @@
 ---
 name: engineering-intent
-description: Apply risk-proportional, failure-aware judgment to consequential software architecture, state, interface, security, reliability, or production-readiness work. Use lightly for ordinary implementation and more deeply only when the user, repository, or concrete risk calls for it. Do not use as a release checklist for routine changes, prototypes, simple answers, cosmetic edits, or specified commands.
+description: Apply risk-proportional, failure-aware judgment to consequential software architecture, state, interfaces, purpose-built configuration, security, reliability, or production-readiness work. Use lightly for ordinary implementation and more deeply only when the user, repository, or concrete risk calls for it. Do not use as a release checklist for routine changes, prototypes, simple answers, cosmetic edits, or specified commands.
 ---
 # Engineering Intent
 
