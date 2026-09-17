@@ -28,3 +28,16 @@ Update installed skills from this repository with:
 gh skill update engineering-intent
 gh skill update operational-intent
 ```
+
+## Landing page
+
+The English landing page lives at `/`, with a Korean version at `/ko/`. It is a static Vite site in [`web/`](web/) using `merak-protocol-design-system`.
+
+```console
+cd web
+npm install
+npm run dev
+npm run build
+```
+
+Cloudflare Pages settings: root directory `web`, build command `npm run build`, output directory `dist`. Publishing and domain setup are separate from this repository.

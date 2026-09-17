@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#12161f" />
+    <meta name="description" content="Intent is a pair of reusable agent skills for risk-proportional engineering and evidence-led operational work." />
+    <link rel="stylesheet" href="/src/site.css" />
+    <title>Intent — A better frame for agent judgment</title>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="site-brand" href="/" aria-label="Intent home">Intent</a>
+        <nav class="site-nav" aria-label="Main navigation">
+          <a href="#philosophy">Philosophy</a>
+          <a href="#skills">Skills</a>
+        </nav>
+        <div class="header-actions">
+          <nav class="language-switch" aria-label="Language">
+            <a href="/" lang="en" hreflang="en" aria-current="page">EN</a>
+            <span aria-hidden="true">/</span>
+            <a href="/ko/" lang="ko" hreflang="ko">한국어</a>
+          </nav>
+          <a class="header-github" href="https://github.com/saturday-dinner-club/intent">GitHub</a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero page-width" aria-labelledby="hero-title">
+        <div class="hero__copy">
+          <h1 id="hero-title">A better frame for agent judgment.</h1>
+          <p>Two reusable skills for deciding how to build, investigate, and respond—with only the depth the situation needs.</p>
+          <div class="hero__actions">
+            <a class="mp-button mp-button--primary cta" href="#skills">Explore the skills <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg></a>
+            <a class="mp-button mp-button--secondary cta" href="https://github.com/saturday-dinner-club/intent">View on GitHub</a>
+          </div>
+        </div>
+        <div class="intent-map" aria-label="Intent has two skills: Engineering Intent and Operational Intent">
+          <div class="intent-map__origin">Intent</div>
+          <div class="intent-map__connector" aria-hidden="true"><span></span><span></span></div>
+          <div class="intent-map__destinations">
+            <a class="intent-map__destination" href="https://github.com/saturday-dinner-club/intent/blob/main/skills/engineering-intent/SKILL.md">
+              <span class="intent-map__symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="m11 8-7 8 7 8m10-16 7 8-7 8m-3-20-4 24" /></svg></span>
+              <span><strong>Engineering Intent</strong><small>Plan, build, and change with clarity.</small></span>
+              <svg class="intent-map__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
+            </a>
+            <a class="intent-map__destination" href="https://github.com/saturday-dinner-club/intent/blob/main/skills/operational-intent/SKILL.md">
+              <span class="intent-map__symbol" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M7 7h18v18H7zM12 13h8m-8 6h8" /></svg></span>
+              <span><strong>Operational Intent</strong><small>Investigate, assess, and respond.</small></span>
+              <svg class="intent-map__arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg>
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <section class="skills-section section-pad" id="skills" aria-labelledby="skills-title">
+        <div class="page-width">
+          <h2 id="skills-title">Two skills, distinct jobs.</h2>
+          <div class="skill-columns">
+            <article class="skill-column">
+              <span class="section-label">01 / Engineering</span>
+              <h3>Engineering Intent</h3>
+              <p>Guides how to design, implement, and verify a software change. It keeps ordinary work lean and asks for deeper evidence when the stakes actually call for it.</p>
+              <p class="skill-column__topics">Architecture · State · Interfaces · Security · Testing</p>
+              <a class="text-link" href="https://github.com/saturday-dinner-club/intent/blob/main/skills/engineering-intent/SKILL.md">Read the engineering skill <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg></a>
+            </article>
+            <article class="skill-column">
+              <span class="section-label">02 / Operations</span>
+              <h3>Operational Intent</h3>
+              <p>Guides how to understand and respond to existing behavior. It helps with investigation, review, customer support, and incidents without making every case a full-scale process.</p>
+              <p class="skill-column__topics">Debugging · Review · Support · Incidents</p>
+              <a class="text-link" href="https://github.com/saturday-dinner-club/intent/blob/main/skills/operational-intent/SKILL.md">Read the operational skill <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg></a>
+            </article>
+          </div>
+          <p class="boundary-note">Understanding a problem is not the same as changing a system.</p>
+        </div>
+      </section>
+
+      <section class="philosophy-section section-pad" id="philosophy" aria-labelledby="philosophy-title">
+        <div class="page-width">
+          <h2 id="philosophy-title">Context over checklists.</h2>
+          <div class="principles">
+            <div><h3>Match the stakes</h3><p>Use the smallest useful process for the risk and the question at hand.</p></div>
+            <div><h3>Follow the evidence</h3><p>Separate what is observed from what is inferred, and verify at the relevant boundary.</p></div>
+            <div><h3>Know the boundary</h3><p>A diagnosis is not permission to make a change. Local contracts and explicit decisions come first.</p></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="page-width site-footer__inner">
+        <strong>Intent</strong>
+        <p>Reusable guidance, not product-specific procedure.</p>
+        <a class="text-link" href="https://github.com/saturday-dinner-club/intent">View on GitHub <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15m-6-6 6 6-6 6" /></svg></a>
+      </div>
+    </footer>
+  </body>
+</html>
